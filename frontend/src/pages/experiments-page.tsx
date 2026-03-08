@@ -34,7 +34,7 @@ function ExperimentStatusBadge({ status }: { status: string }) {
 // List View
 function ExperimentsList() {
   const navigate = useNavigate();
-  const { data: experiments, isLoading } = useExperiments();
+  const { data: experiments, isLoading, isError } = useExperiments();
   const { data: employees } = useEmployees();
   const createMutation = useCreateExperiment();
 
@@ -55,6 +55,8 @@ function ExperimentsList() {
   }
 
   if (isLoading) return <p className="text-gray-500">Loading...</p>;
+
+  if (isError) return <p className="text-red-500">Failed to load experiments.</p>;
 
   return (
     <div className="space-y-6">
@@ -110,7 +112,7 @@ function ExperimentsList() {
                     <span>{new Date(exp.startDate).toLocaleDateString()}</span>
                     <span>{exp._count?.cultures ?? 0} cultures</span>
                     <span>{exp._count?.entries ?? 0} entries</span>
-                    <span>by {exp.creator?.name}</span>
+                    <span>by {exp.creator?.name ?? 'Unknown'}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -125,7 +127,7 @@ function ExperimentsList() {
 // Detail View
 function ExperimentDetail({ id }: { id: string }) {
   const navigate = useNavigate();
-  const { data: experiment, isLoading } = useExperimentDetail(id);
+  const { data: experiment, isLoading, isError } = useExperimentDetail(id);
   const { data: employees } = useEmployees();
   const updateMutation = useUpdateExperiment();
   const addCulturesMutation = useAddExperimentCultures();
@@ -138,7 +140,7 @@ function ExperimentDetail({ id }: { id: string }) {
   const [entryCreatedBy, setEntryCreatedBy] = useState('');
 
   if (isLoading) return <p className="text-gray-500">Loading...</p>;
-  if (!experiment) return <p className="text-gray-500">Experiment not found.</p>;
+  if (isError || !experiment) return <p className="text-red-500">Failed to load experiment.</p>;
 
   async function handleAddCultures() {
     const codes = qrInput.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
@@ -182,7 +184,7 @@ function ExperimentDetail({ id }: { id: string }) {
           <div className="flex items-center gap-2 mt-1">
             <ExperimentStatusBadge status={experiment.status} />
             <span className="text-sm text-gray-400">
-              Started {new Date(experiment.startDate).toLocaleDateString()} by {experiment.creator?.name}
+              Started {new Date(experiment.startDate).toLocaleDateString()} by {experiment.creator?.name ?? 'Unknown'}
             </span>
           </div>
           {experiment.description && <p className="text-sm text-gray-500 mt-2">{experiment.description}</p>}
@@ -228,9 +230,17 @@ function ExperimentDetail({ id }: { id: string }) {
                     variant="ghost"
                     size="sm"
                     className="text-red-500 hover:text-red-700"
-                    onClick={() => removeCultureMutation.mutate({ id, containerQr: ec.containerQr })}
+                    disabled={removeCultureMutation.isPending}
+                    onClick={async () => {
+                      try {
+                        await removeCultureMutation.mutateAsync({ id, containerQr: ec.containerQr });
+                        toast.success('Culture removed');
+                      } catch {
+                        toast.error('Failed to remove culture');
+                      }
+                    }}
                   >
-                    Remove
+                    {removeCultureMutation.isPending ? 'Removing...' : 'Remove'}
                   </Button>
                 </div>
               ))}
@@ -253,6 +263,7 @@ function ExperimentDetail({ id }: { id: string }) {
                   <SelectItem value="log">Log</SelectItem>
                   <SelectItem value="observation">Observation</SelectItem>
                   <SelectItem value="result">Result</SelectItem>
+                  <SelectItem value="photo">Photo</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={entryCreatedBy} onValueChange={setEntryCreatedBy}>

@@ -18,7 +18,7 @@ export default function ContainersPage() {
   const queryStatus: ContainerStatus | undefined =
     selectedStatus === 'ALL' ? undefined : (selectedStatus as ContainerStatus);
 
-  const { data: containers, isLoading } = useContainers(queryStatus);
+  const { data: containers, isLoading, isError } = useContainers(queryStatus);
 
   // Filter overdue
   const overdue = (containers ?? []).filter(
@@ -51,6 +51,12 @@ export default function ContainersPage() {
       )}
 
       {isLoading && <p className="text-gray-500">Loading...</p>}
+
+      {!isLoading && isError && (
+        <div className="text-center py-16">
+          <p className="text-red-500 text-sm">Failed to load containers. Please try refreshing.</p>
+        </div>
+      )}
 
       {!isLoading && containers && containers.length === 0 && (
         <div className="text-center py-16">

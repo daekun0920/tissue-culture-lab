@@ -37,8 +37,8 @@ export function ScannerContainerCard({
         onChange={onToggle}
         className="mt-1 h-4 w-4 rounded border-gray-300"
         onClick={(e) => e.stopPropagation()}
+        aria-label={`Select container ${item.qrCode}`}
       />
-
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <span className="font-mono text-sm font-medium">{qrCode}</span>

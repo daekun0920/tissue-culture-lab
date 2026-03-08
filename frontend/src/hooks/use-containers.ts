@@ -32,7 +32,7 @@ export function useBatchAction() {
     mutationFn: (payload: BatchActionPayload) =>
       containerApi.batchAction(payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.containers.all });
+      qc.invalidateQueries({ queryKey: queryKeys.containers.all, exact: false });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard });
     },
   });
@@ -44,7 +44,7 @@ export function useRegisterContainers() {
     mutationFn: (args: { qrCodes: string[]; containerTypeId?: string; notes?: string }) =>
       containerApi.register(args.qrCodes, args.containerTypeId, args.notes),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.containers.all });
+      qc.invalidateQueries({ queryKey: queryKeys.containers.all, exact: false });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard });
     },
   });
@@ -63,5 +63,6 @@ export function useDashboard() {
     queryKey: queryKeys.dashboard,
     queryFn: () => containerApi.getDashboard(),
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   });
 }

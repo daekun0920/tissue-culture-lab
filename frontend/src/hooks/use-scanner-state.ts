@@ -6,7 +6,7 @@ const ACTION_VALID_STATUSES: Record<string, string[]> = {
   REGISTER_CONTAINER: [],
   PREPARE_MEDIA: ['EMPTY'],
   ADD_CULTURE: ['HAS_MEDIA'],
-  DISCARD_CULTURE: ['HAS_CULTURE', 'HAS_MEDIA'],
+  DISCARD_CULTURE: ['HAS_CULTURE'],
   DISCARD_CONTAINER: ['EMPTY', 'HAS_MEDIA', 'HAS_CULTURE'],
   SUBCULTURE: ['HAS_CULTURE'],
   EXIT_CULTURE: ['HAS_CULTURE'],
@@ -73,17 +73,22 @@ export function useScannerState() {
       const trimmed = qr.trim();
       if (!trimmed) return;
 
-      // Check for duplicate
-      if (scannedItems.some((item) => item.qrCode === trimmed)) {
-        return 'duplicate';
-      }
+      // Use ref-like check via functional update to avoid stale closure
+      let isDuplicate = false;
+      setScannedItems((prev) => {
+        if (prev.some((item) => item.qrCode === trimmed)) {
+          isDuplicate = true;
+        }
+        return prev; // Don't modify yet
+      });
+
+      if (isDuplicate) return 'duplicate';
 
       // Fetch container from API
       let container: Container | null = null;
       try {
         container = await containerApi.getByQr(trimmed);
       } catch {
-        // Container not found = null
         container = null;
       }
 
@@ -98,15 +103,19 @@ export function useScannerState() {
         invalidReason,
       };
 
-      setScannedItems((prev) => [...prev, newItem]);
-      // Auto-select if valid
+      setScannedItems((prev) => {
+        // Double-check for duplicate (in case of concurrent adds)
+        if (prev.some((item) => item.qrCode === trimmed)) return prev;
+        return [...prev, newItem];
+      });
+
       if (isValid) {
         setSelectedQrCodes((prev) => new Set([...prev, trimmed]));
       }
 
       return 'added';
     },
-    [scannedItems, selectedAction],
+    [selectedAction],
   );
 
   const removeQrCode = useCallback((qr: string) => {

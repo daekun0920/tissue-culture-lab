@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,7 +58,11 @@ export default function ScannerPage() {
         payload,
         employeeId,
       });
-      setResults(res as { successes: string[]; errors: { qrCode: string; reason: string }[] });
+      const typed = res as { success: boolean; count: number; results?: { qrCode: string; status: string }[]; errors?: { qrCode: string; reason: string }[] };
+      setResults({
+        successes: typed.results?.map((r) => r.qrCode) ?? selectedArray,
+        errors: typed.errors ?? [],
+      });
       setShowDrawer(false);
       toast.success('Action executed successfully');
     } catch (err: unknown) {
@@ -67,6 +71,10 @@ export default function ScannerPage() {
       );
     }
   };
+
+  useEffect(() => {
+    setResults(null);
+  }, [scanner.selectedAction, scanner.rawItems.length]);
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">

@@ -32,6 +32,15 @@ export const router = createBrowserRouter([
       { path: 'experiments', element: <ExperimentsPage /> },
       { path: 'experiments/:id', element: <ExperimentsPage /> },
       { path: 'c/:qr', element: <ContainerDetailPage /> },
+      {
+        path: '*',
+        element: (
+          <div className="text-center py-16">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Page Not Found</h2>
+            <p className="text-gray-500">The page you're looking for doesn't exist.</p>
+          </div>
+        ),
+      },
     ],
   },
 ]);

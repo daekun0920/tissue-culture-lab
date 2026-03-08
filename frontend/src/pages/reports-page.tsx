@@ -25,8 +25,8 @@ export default function ReportsPage() {
   const [to, setTo] = useState('');
 
   const { data: employees } = useEmployees();
-  const { data: empReport, isLoading: empLoading } = useEmployeeReport(employeeId, from || undefined, to || undefined);
-  const { data: sysReport, isLoading: sysLoading } = useSystemReport(from || undefined, to || undefined);
+  const { data: empReport, isLoading: empLoading, isError: empError } = useEmployeeReport(employeeId, from || undefined, to || undefined);
+  const { data: sysReport, isLoading: sysLoading, isError: sysError } = useSystemReport(from || undefined, to || undefined);
 
   return (
     <div className="space-y-6">
@@ -66,7 +66,7 @@ export default function ReportsPage() {
 
       {/* System Reports */}
       {tab === 'system' && (
-        sysLoading ? <p className="text-gray-500">Loading...</p> : sysReport && (
+        sysLoading ? <p className="text-gray-500">Loading...</p> : sysError ? <p className="text-red-500">Failed to load system report.</p> : sysReport && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
@@ -136,6 +136,8 @@ export default function ReportsPage() {
           <p className="text-gray-400 text-sm py-8 text-center">Select an employee to view their report.</p>
         ) : empLoading ? (
           <p className="text-gray-500">Loading...</p>
+        ) : empError ? (
+          <p className="text-red-500">Failed to load employee report.</p>
         ) : empReport && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

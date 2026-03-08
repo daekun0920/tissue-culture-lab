@@ -23,13 +23,22 @@ function getCountForStatus(statusCounts: Record<string, number>, status: Contain
 }
 
 export default function Dashboard() {
-  const { data, isLoading } = useDashboard();
+  const { data, isLoading, isError } = useDashboard();
 
   if (isLoading) {
     return (
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h2>
         <p className="text-gray-500">Loading...</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h2>
+        <p className="text-red-500">Failed to load dashboard data. Please try refreshing.</p>
       </div>
     );
   }
