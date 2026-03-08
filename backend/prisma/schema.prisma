@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum ContainerStatus {
+  EMPTY
+  HAS_MEDIA
+  HAS_CULTURE
+  DISCARDED
+}
+
+model ContainerType {
+  id         String  @id @default(uuid())
+  name       String
+  size       String?
+  material   String?
+  isVented   Boolean @default(false) @map("is_vented")
+  isReusable Boolean @default(true) @map("is_reusable")
+
+  containers Container[]
+
+  @@map("container_types")
+}
+
+model Container {
+  qrCode            String          @id @map("qr_code")
+  status            ContainerStatus @default(EMPTY)
+  containerTypeId   String?         @map("container_type_id")
+  mediaId           String?         @map("media_id")
+  cultureId         String?         @map("culture_id")
+  parentId          String?         @map("parent_id")
+  notes             String?
+  cultureDate       DateTime?       @map("culture_date")
+  subcultureInterval Int?           @map("subculture_interval")
+  dueSubcultureDate DateTime?       @map("due_subculture_date")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  containerType      ContainerType?      @relation(fields: [containerTypeId], references: [id])
+  media              MediaBatch?         @relation(fields: [mediaId], references: [id])
+  culture            CultureType?        @relation(fields: [cultureId], references: [id])
+  parent             Container?          @relation("ContainerLineage", fields: [parentId], references: [qrCode])
+  children           Container[]         @relation("ContainerLineage")
+  logs               ActionLog[]
+  experimentCultures ExperimentCulture[]
+
+  @@map("containers")
+}
+
+model MediaRecipe {
+  id       String @id @default(uuid())
+  name     String
+  baseType String @map("base_type")
+  phLevel  Float  @map("ph_level")
+  agar     Float
+  hormones String @default("{}")
+
+  batches MediaBatch[]
+
+  @@map("media_recipes")
+}
+
+model MediaBatch {
+  id          String   @id @default(uuid())
+  recipeId    String   @map("recipe_id")
+  batchNumber String?  @map("batch_number")
+  datePrep    DateTime @default(now()) @map("date_prep")
+  notes       String?
+
+  recipe     MediaRecipe @relation(fields: [recipeId], references: [id])
+  containers Container[]
+
+  @@map("media_batches")
+}
+
+model CultureType {
+  id                        String @id @default(uuid())
+  name                      String
+  species                   String?
+  clone                     String?
+  origin                    String?
+  defaultSubcultureInterval Int    @default(28) @map("default_subculture_interval")
+
+  containers Container[]
+
+  @@map("culture_types")
+}
+
+model Employee {
+  id       String  @id @default(uuid())
+  name     String
+  isActive Boolean @default(true) @map("is_active")
+
+  logs              ActionLog[]
+  experiments       Experiment[]
+  experimentEntries ExperimentEntry[] @relation("ExperimentEntryCreator")
+
+  @@map("employees")
+}
+
+model ActionLog {
+  id             String   @id @default(uuid())
+  timestamp      DateTime @default(now())
+  action         String
+  performedBy    String   @map("performed_by")
+  containerQr    String   @map("container_qr")
+  previousStatus String?  @map("previous_status")
+  newStatus      String?  @map("new_status")
+  note           String?
+  metadata       String?  @default("{}")
+
+  employee  Employee  @relation(fields: [performedBy], references: [id])
+  container Container @relation(fields: [containerQr], references: [qrCode])
+
+  @@map("action_logs")
+}
+
+model Experiment {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  status      String    @default("active")
+  startDate   DateTime  @default(now()) @map("start_date")
+  endDate     DateTime? @map("end_date")
+  createdBy   String    @map("created_by")
+
+  creator  Employee            @relation(fields: [createdBy], references: [id])
+  entries  ExperimentEntry[]
+  cultures ExperimentCulture[]
+
+  @@map("experiments")
+}
+
+model ExperimentCulture {
+  id           String   @id @default(uuid())
+  experimentId String   @map("experiment_id")
+  containerQr  String   @map("container_qr")
+  addedAt      DateTime @default(now()) @map("added_at")
+  notes        String?
+
+  experiment Experiment @relation(fields: [experimentId], references: [id])
+  container  Container  @relation(fields: [containerQr], references: [qrCode])
+
+  @@unique([experimentId, containerQr])
+  @@map("experiment_cultures")
+}
+
+model ExperimentEntry {
+  id           String   @id @default(uuid())
+  experimentId String   @map("experiment_id")
+  entryType    String   @default("log")
+  content      String
+  createdBy    String   @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  experiment Experiment @relation(fields: [experimentId], references: [id])
+  creator    Employee   @relation("ExperimentEntryCreator", fields: [createdBy], references: [id])
+
+  @@map("experiment_entries")
+}
