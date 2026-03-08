@@ -13,7 +13,7 @@ export default function QrGeneratorPage() {
 
   const [startNumber, setStartNumber] = useState(1000);
   const [count, setCount] = useState(50);
-  const [baseUrl, setBaseUrl] = useState('https://app.tclab.io/c/');
+  const [baseUrl, setBaseUrl] = useState(`${window.location.origin}/containers/`);
   const [registerInSystem, setRegisterInSystem] = useState(false);
   const [generated, setGenerated] = useState<string[]>([]);
   const qrAreaRef = useRef<HTMLDivElement>(null);
