@@ -3,6 +3,18 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
+  // Clean existing data (in reverse dependency order)
+  await prisma.experimentEntry.deleteMany();
+  await prisma.experimentCulture.deleteMany();
+  await prisma.experiment.deleteMany();
+  await prisma.actionLog.deleteMany();
+  await prisma.container.deleteMany();
+  await prisma.mediaBatch.deleteMany();
+  await prisma.mediaRecipe.deleteMany();
+  await prisma.cultureType.deleteMany();
+  await prisma.containerType.deleteMany();
+  await prisma.employee.deleteMany();
+
   // Employees
   const emp1 = await prisma.employee.create({
     data: { name: 'Alice Kim', isActive: true },

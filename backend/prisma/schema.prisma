@@ -16,7 +16,7 @@ enum ContainerStatus {
 
 model ContainerType {
   id         String  @id @default(uuid())
-  name       String
+  name       String  @unique
   size       String?
   material   String?
   isVented   Boolean @default(false) @map("is_vented")
@@ -41,15 +41,17 @@ model Container {
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
-  containerType      ContainerType?      @relation(fields: [containerTypeId], references: [id])
-  media              MediaBatch?         @relation(fields: [mediaId], references: [id])
-  culture            CultureType?        @relation(fields: [cultureId], references: [id])
-  parent             Container?          @relation("ContainerLineage", fields: [parentId], references: [qrCode])
+  containerType      ContainerType?      @relation(fields: [containerTypeId], references: [id], onDelete: SetNull)
+  media              MediaBatch?         @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  culture            CultureType?        @relation(fields: [cultureId], references: [id], onDelete: SetNull)
+  parent             Container?          @relation("ContainerLineage", fields: [parentId], references: [qrCode], onDelete: SetNull)
   children           Container[]         @relation("ContainerLineage")
   logs               ActionLog[]
   experimentCultures ExperimentCulture[]
 
   @@map("containers")
+  @@index([status])
+  @@index([dueSubcultureDate])
 }
 
 model MediaRecipe {
@@ -72,15 +74,16 @@ model MediaBatch {
   datePrep    DateTime @default(now()) @map("date_prep")
   notes       String?
 
-  recipe     MediaRecipe @relation(fields: [recipeId], references: [id])
+  recipe     MediaRecipe @relation(fields: [recipeId], references: [id], onDelete: Restrict)
   containers Container[]
 
   @@map("media_batches")
+  @@index([recipeId])
 }
 
 model CultureType {
   id                        String @id @default(uuid())
-  name                      String
+  name                      String @unique
   species                   String?
   clone                     String?
   origin                    String?
@@ -114,10 +117,13 @@ model ActionLog {
   note           String?
   metadata       String?  @default("{}")
 
-  employee  Employee  @relation(fields: [performedBy], references: [id])
-  container Container @relation(fields: [containerQr], references: [qrCode])
+  employee  Employee  @relation(fields: [performedBy], references: [id], onDelete: Restrict)
+  container Container @relation(fields: [containerQr], references: [qrCode], onDelete: Cascade)
 
   @@map("action_logs")
+  @@index([timestamp])
+  @@index([performedBy])
+  @@index([containerQr])
 }
 
 model Experiment {
@@ -129,7 +135,7 @@ model Experiment {
   endDate     DateTime? @map("end_date")
   createdBy   String    @map("created_by")
 
-  creator  Employee            @relation(fields: [createdBy], references: [id])
+  creator  Employee            @relation(fields: [createdBy], references: [id], onDelete: Restrict)
   entries  ExperimentEntry[]
   cultures ExperimentCulture[]
 
@@ -143,8 +149,8 @@ model ExperimentCulture {
   addedAt      DateTime @default(now()) @map("added_at")
   notes        String?
 
-  experiment Experiment @relation(fields: [experimentId], references: [id])
-  container  Container  @relation(fields: [containerQr], references: [qrCode])
+  experiment Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  container  Container  @relation(fields: [containerQr], references: [qrCode], onDelete: Cascade)
 
   @@unique([experimentId, containerQr])
   @@map("experiment_cultures")
@@ -158,8 +164,8 @@ model ExperimentEntry {
   createdBy    String   @map("created_by")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  experiment Experiment @relation(fields: [experimentId], references: [id])
-  creator    Employee   @relation("ExperimentEntryCreator", fields: [createdBy], references: [id])
+  experiment Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  creator    Employee   @relation("ExperimentEntryCreator", fields: [createdBy], references: [id], onDelete: Restrict)
 
   @@map("experiment_entries")
 }
