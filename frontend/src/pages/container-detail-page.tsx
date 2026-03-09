@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -5,6 +6,11 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/containers/status-badge';
 import { ContainerCard } from '@/components/containers/container-card';
 import { useContainerDetail } from '@/hooks/use-containers';
+import {
+  ContainerActionDialog,
+  getAvailableActions,
+  type ActionConfig,
+} from '@/components/containers/container-action-dialog';
 
 function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleString();
@@ -14,6 +20,8 @@ export default function ContainerDetailPage() {
   const { qr } = useParams<{ qr: string }>();
   const navigate = useNavigate();
   const { data: container, isLoading, isError } = useContainerDetail(qr ?? '');
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [selectedAction, setSelectedAction] = useState<ActionConfig | undefined>();
 
   if (isLoading) {
     return (
@@ -139,6 +147,38 @@ export default function ContainerDetailPage() {
           </dl>
         </CardContent>
       </Card>
+
+      {/* Action Buttons */}
+      {getAvailableActions(container.status).length > 0 && (
+        <Card className="mb-6">
+          <CardHeader><CardTitle className="text-base">Actions</CardTitle></CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {getAvailableActions(container.status).map((ac) => (
+                <Button
+                  key={ac.action}
+                  variant={ac.action.includes('DISCARD') ? 'destructive' : 'default'}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedAction(ac);
+                    setActionDialogOpen(true);
+                  }}
+                >
+                  {ac.label}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Action Dialog */}
+      <ContainerActionDialog
+        container={container}
+        open={actionDialogOpen}
+        onOpenChange={setActionDialogOpen}
+        selectedAction={selectedAction}
+      />
 
       {/* Sub-cultures */}
       {children.length > 0 && (

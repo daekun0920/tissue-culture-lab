@@ -75,7 +75,7 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             {data.statusDistribution.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
                     data={data.statusDistribution}
@@ -83,11 +83,14 @@ export default function ReportsPage() {
                     nameKey="status"
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    label={(props: PieLabelRenderProps) =>
-                      `${props.name ?? ''}: ${Math.round((props.percent ?? 0) * 100)}%`
-                    }
+                    innerRadius={50}
+                    outerRadius={80}
+                    label={(props: PieLabelRenderProps) => {
+                      const name = String(props.name ?? '').replace('_', ' ');
+                      const pct = Math.round((props.percent ?? 0) * 100);
+                      return `${name}: ${pct}%`;
+                    }}
+                    labelLine
                   >
                     {data.statusDistribution.map((entry) => (
                       <Cell

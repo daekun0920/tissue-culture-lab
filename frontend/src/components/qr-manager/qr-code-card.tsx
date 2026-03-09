@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +18,32 @@ const statusColors: Record<string, string> = {
 
 export function QrCodeCard({ container }: QrCodeCardProps) {
   const navigate = useNavigate();
+
+  const handleDownload = useCallback(() => {
+    // Create a simple SVG-based QR code download
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '200');
+    svg.setAttribute('height', '240');
+    svg.innerHTML = `
+      <rect width="200" height="240" fill="white"/>
+      <text x="100" y="120" text-anchor="middle" font-size="48" font-family="monospace" fill="black">${container.qrCode}</text>
+      <text x="100" y="220" text-anchor="middle" font-size="14" font-family="sans-serif" fill="#666">QR: ${container.qrCode}</text>
+    `;
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 240;
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.onload = () => {
+      ctx?.drawImage(img, 0, 0);
+      const a = document.createElement('a');
+      a.download = `qr-${container.qrCode}.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    };
+    img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+  }, [container.qrCode]);
 
   const location = container.shelf
     ? [
@@ -61,7 +88,7 @@ export function QrCodeCard({ container }: QrCodeCardProps) {
         >
           <Eye className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm">
+        <Button variant="ghost" size="sm" onClick={handleDownload}>
           <Download className="h-4 w-4" />
         </Button>
       </div>
