@@ -22,7 +22,7 @@ const ACTION_VALID_STATUSES: Record<string, ContainerStatus[]> = {
   REGISTER_CONTAINER: [], // only for unregistered QRs
   PREPARE_MEDIA: [ContainerStatus.EMPTY],
   ADD_CULTURE: [ContainerStatus.HAS_MEDIA],
-  DISCARD_CULTURE: [ContainerStatus.HAS_CULTURE, ContainerStatus.HAS_MEDIA],
+  DISCARD_CULTURE: [ContainerStatus.HAS_CULTURE],
   DISCARD_CONTAINER: [
     ContainerStatus.EMPTY,
     ContainerStatus.HAS_MEDIA,
