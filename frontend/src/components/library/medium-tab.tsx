@@ -57,7 +57,7 @@ export function MediumTab() {
             <p className="font-medium text-gray-900">{recipe.name}</p>
             <p className="text-sm text-gray-500">
               {recipe.baseType} &middot; pH {recipe.phLevel} &middot;{' '}
-              {recipe._count?.batches ?? 0} batches
+              {recipe._count?.batches ?? 0} {(recipe._count?.batches ?? 0) === 1 ? 'batch' : 'batches'}
             </p>
           </div>
         </div>

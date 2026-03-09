@@ -85,8 +85,8 @@ export default function ReportsPage() {
                     cy="50%"
                     innerRadius={60}
                     outerRadius={90}
-                    label={(props: PieLabelRenderProps & { status?: string; percentage?: number }) =>
-                      `${props.status ?? ''}: ${props.percentage ?? 0}%`
+                    label={(props: PieLabelRenderProps) =>
+                      `${props.name ?? ''}: ${Math.round((props.percent ?? 0) * 100)}%`
                     }
                   >
                     {data.statusDistribution.map((entry) => (

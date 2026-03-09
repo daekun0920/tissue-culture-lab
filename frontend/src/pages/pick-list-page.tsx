@@ -1,17 +1,16 @@
-import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { PickListItem } from '@/components/pick-list/pick-list-item';
 import { PickListSection } from '@/components/pick-list/pick-list-section';
 import { usePickList, usePickListSummary } from '@/hooks/use-pick-list';
 
 export default function PickListPage() {
-  const navigate = useNavigate();
   const { data, isLoading } = usePickList();
   const { data: summary } = usePickListSummary();
 
-  const total = summary?.total ?? 0;
+  const pending = summary?.total ?? 0;
   const completed = summary?.completedCount ?? 0;
-  const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const grandTotal = pending + completed;
+  const progress = grandTotal > 0 ? Math.round((completed / grandTotal) * 100) : 0;
 
   if (isLoading) {
     return <div className="py-8 text-center text-gray-400">Loading...</div>;
@@ -23,7 +22,7 @@ export default function PickListPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Pick List</h1>
         <span className="text-sm text-gray-500">
-          {completed}/{total} completed
+          {completed}/{grandTotal} completed
         </span>
       </div>
 
