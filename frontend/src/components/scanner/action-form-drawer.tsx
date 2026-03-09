@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,6 +57,11 @@ export function ActionFormDrawer({
   const [employeeId, setEmployeeId] = useState('');
 
   const handleSubmit = () => {
+    if (!employeeId) {
+      toast.error('Employee is required');
+      return;
+    }
+
     const payload: Record<string, unknown> = {};
     if (note.trim()) payload.note = note.trim();
 
@@ -64,23 +70,43 @@ export function ActionFormDrawer({
         if (containerTypeId) payload.containerTypeId = containerTypeId;
         break;
       case 'PREPARE_MEDIA':
-        if (mediaBatchId) payload.mediaBatchId = mediaBatchId;
+        if (!mediaBatchId) {
+          toast.error('Media batch is required');
+          return;
+        }
+        payload.mediaBatchId = mediaBatchId;
         break;
       case 'ADD_CULTURE':
-        if (cultureTypeId) payload.cultureTypeId = cultureTypeId;
-        if (subcultureInterval)
-          payload.subcultureInterval = parseInt(subcultureInterval);
+        if (!cultureTypeId) {
+          toast.error('Culture type is required');
+          return;
+        }
+        payload.cultureTypeId = cultureTypeId;
+        if (subcultureInterval) {
+          const parsed = parseInt(subcultureInterval, 10);
+          if (!isNaN(parsed) && parsed > 0) {
+            payload.subcultureInterval = parsed;
+          }
+        }
         break;
       case 'DISCARD_CULTURE':
       case 'DISCARD_CONTAINER':
-        if (reason) payload.reason = reason;
+        if (!reason) {
+          toast.error('Reason is required');
+          return;
+        }
+        payload.reason = reason;
         break;
       case 'SUBCULTURE': {
         const targets = targetQrCodesStr
           .split(/[,\n]/)
           .map((s) => s.trim())
           .filter(Boolean);
-        if (targets.length) payload.targetQrCodes = targets;
+        if (!targets.length) {
+          toast.error('At least one target QR code is required');
+          return;
+        }
+        payload.targetQrCodes = targets;
         break;
       }
       case 'EXIT_CULTURE':

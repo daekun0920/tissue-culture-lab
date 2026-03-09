@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,8 +13,11 @@ import { ActionFormDrawer } from '@/components/scanner/action-form-drawer';
 import { CameraScanner } from '@/components/scanner/camera-scanner';
 import { useScannerState } from '@/hooks/use-scanner-state';
 import { useBatchAction } from '@/hooks/use-containers';
+import type { ActionType } from '@/types';
+
 
 export default function ScannerPage() {
+  const location = useLocation();
   const scanner = useScannerState();
   const batchAction = useBatchAction();
   const [showDrawer, setShowDrawer] = useState(false);
@@ -22,6 +26,31 @@ export default function ScannerPage() {
     successes: string[];
     errors: { qrCode: string; reason: string }[];
   } | null>(null);
+  const preloadedRef = useRef(false);
+
+  // Auto-add containers passed via location state (from /containers or /containers/:qr)
+  useEffect(() => {
+    const state = location.state as { qrCodes?: string[]; action?: ActionType } | null;
+    if (!state?.qrCodes || !Array.isArray(state.qrCodes) || !state.qrCodes.length || preloadedRef.current) return;
+    preloadedRef.current = true;
+
+    // Set action if provided
+    if (state.action) {
+      scanner.changeAction(state.action);
+    }
+
+    // Add each QR code
+    const addAll = async () => {
+      for (const qr of state.qrCodes!) {
+        await scanner.addQrCode(qr);
+      }
+      toast.success(`Loaded ${state.qrCodes!.length} container${state.qrCodes!.length !== 1 ? 's' : ''}`);
+    };
+    addAll().catch(() => {});
+
+    // Clear location state so refresh doesn't re-add
+    window.history.replaceState({}, '');
+  }, [location.state, scanner]);
 
   const handleAdd = useCallback(
     async (qr: string) => {
@@ -65,6 +94,9 @@ export default function ScannerPage() {
       });
       setShowDrawer(false);
       toast.success('Action executed successfully');
+      if (!typed.errors?.length) {
+        scanner.clearAll();
+      }
     } catch (err: unknown) {
       toast.error(
         err instanceof Error ? err.message : 'Action failed',
