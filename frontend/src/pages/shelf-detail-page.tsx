@@ -79,7 +79,7 @@ export default function ShelfDetailPage() {
       <div className="space-y-3">
         {shelf.containers?.map((container) => (
           <button
-            key={container.id}
+            key={container.qrCode}
             onClick={() => navigate(`/containers/${container.qrCode}`)}
             className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition-colors text-left"
           >
@@ -90,7 +90,7 @@ export default function ShelfDetailPage() {
               <p className="font-medium text-gray-900 font-mono text-sm">{container.qrCode}</p>
               <p className="text-sm text-gray-500">
                 {container.status.replace(/_/g, ' ')}
-                {container.cultureType && ` · ${container.cultureType.name}`}
+                {container.culture && ` · ${container.culture.name}`}
               </p>
             </div>
           </button>
