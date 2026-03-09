@@ -11,7 +11,19 @@ const BORDER_COLORS: Record<ContainerStatus, string> = {
   DISCARDED: 'border-l-neutral-400',
 };
 
-export function ContainerCard({ container }: { container: Container }) {
+interface ContainerCardProps {
+  container: Container;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggle?: () => void;
+}
+
+export function ContainerCard({
+  container,
+  selectable = false,
+  selected = false,
+  onToggle,
+}: ContainerCardProps) {
   const borderClass = BORDER_COLORS[container.status];
   const isOverdue =
     container.status === 'HAS_CULTURE' &&
@@ -23,38 +35,76 @@ export function ContainerCard({ container }: { container: Container }) {
     container.media?.recipe?.name ??
     null;
 
+  const cardContent = (
+    <Card
+      className={cn(
+        'border-l-4 hover:shadow-md transition-shadow cursor-pointer',
+        borderClass,
+        isOverdue && 'ring-2 ring-red-300',
+        selectable && selected && 'ring-2 ring-blue-400 bg-blue-50/30',
+      )}
+    >
+      <CardContent className="p-4 flex flex-col gap-2">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2">
+            {selectable && (
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onToggle?.();
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                aria-label={`Select container ${container.qrCode}`}
+              />
+            )}
+            <StatusBadge status={container.status} />
+          </div>
+          <span className="text-xs text-gray-400">
+            {new Date(container.updatedAt).toLocaleDateString()}
+          </span>
+        </div>
+
+        {displayName && (
+          <p className="text-sm font-medium text-gray-800 truncate">
+            {displayName}
+          </p>
+        )}
+
+        {isOverdue && (
+          <p className="text-xs text-red-500 font-medium">Overdue</p>
+        )}
+
+        <p className="text-xs font-mono text-gray-500 text-right mt-auto">
+          {container.qrCode}
+        </p>
+      </CardContent>
+    </Card>
+  );
+
+  if (selectable) {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            onToggle?.();
+          }
+        }}
+      >
+        {cardContent}
+      </div>
+    );
+  }
+
   return (
     <Link to={`/containers/${encodeURIComponent(container.qrCode)}`}>
-      <Card
-        className={cn(
-          'border-l-4 hover:shadow-md transition-shadow cursor-pointer',
-          borderClass,
-          isOverdue && 'ring-2 ring-red-300',
-        )}
-      >
-        <CardContent className="p-4 flex flex-col gap-2">
-          <div className="flex items-start justify-between">
-            <StatusBadge status={container.status} />
-            <span className="text-xs text-gray-400">
-              {new Date(container.updatedAt).toLocaleDateString()}
-            </span>
-          </div>
-
-          {displayName && (
-            <p className="text-sm font-medium text-gray-800 truncate">
-              {displayName}
-            </p>
-          )}
-
-          {isOverdue && (
-            <p className="text-xs text-red-500 font-medium">Overdue</p>
-          )}
-
-          <p className="text-xs font-mono text-gray-500 text-right mt-auto">
-            {container.qrCode}
-          </p>
-        </CardContent>
-      </Card>
+      {cardContent}
     </Link>
   );
 }

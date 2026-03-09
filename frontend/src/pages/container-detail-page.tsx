@@ -60,7 +60,7 @@ export default function ContainerDetailPage() {
             )}
           </div>
         </div>
-        <Button onClick={() => navigate(`/operations`)}>
+        <Button onClick={() => navigate('/operations', { state: { qrCodes: [container.qrCode] } })}>
           Perform Action
         </Button>
       </div>
