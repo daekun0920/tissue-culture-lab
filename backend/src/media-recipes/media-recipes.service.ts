@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMediaRecipeDto } from './dto/create-media-recipe.dto';
 import { UpdateMediaRecipeDto } from './dto/update-media-recipe.dto';
@@ -48,6 +48,10 @@ export class MediaRecipesService {
 
   async remove(id: string) {
     await this.findOne(id);
+    const inUse = await this.prisma.mediaBatch.count({ where: { recipeId: id } });
+    if (inUse > 0) {
+      throw new BadRequestException(`Cannot delete: ${inUse} batch(es) use this recipe`);
+    }
     return this.prisma.mediaRecipe.delete({ where: { id } });
   }
 }

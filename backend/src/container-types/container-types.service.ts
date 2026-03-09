@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateContainerTypeDto } from './dto/create-container-type.dto';
 import { UpdateContainerTypeDto } from './dto/update-container-type.dto';
@@ -41,6 +41,10 @@ export class ContainerTypesService {
 
   async remove(id: string) {
     await this.findOne(id);
+    const inUse = await this.prisma.container.count({ where: { containerTypeId: id } });
+    if (inUse > 0) {
+      throw new BadRequestException(`Cannot delete: ${inUse} container(s) use this type`);
+    }
     return this.prisma.containerType.delete({ where: { id } });
   }
 }

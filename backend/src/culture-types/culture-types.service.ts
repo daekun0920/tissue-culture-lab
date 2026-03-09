@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCultureTypeDto } from './dto/create-culture-type.dto';
 import { UpdateCultureTypeDto } from './dto/update-culture-type.dto';
@@ -41,6 +41,10 @@ export class CultureTypesService {
 
   async remove(id: string) {
     await this.findOne(id);
+    const inUse = await this.prisma.container.count({ where: { cultureId: id } });
+    if (inUse > 0) {
+      throw new BadRequestException(`Cannot delete: ${inUse} container(s) use this culture type`);
+    }
     return this.prisma.cultureType.delete({ where: { id } });
   }
 }

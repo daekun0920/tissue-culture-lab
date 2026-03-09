@@ -56,6 +56,10 @@ export class MediaBatchesService {
 
   async remove(id: string) {
     await this.findOne(id);
+    const inUse = await this.prisma.container.count({ where: { mediaId: id } });
+    if (inUse > 0) {
+      throw new BadRequestException(`Cannot delete: ${inUse} container(s) use this media batch`);
+    }
     return this.prisma.mediaBatch.delete({ where: { id } });
   }
 }
