@@ -13,6 +13,14 @@ import type {
   Experiment,
   ExperimentEntry,
   ValidationResult,
+  Zone,
+  Rack,
+  Shelf,
+  PickListData,
+  PickListSummary,
+  EnhancedDashboard,
+  QrSummary,
+  PaginatedResponse,
 } from '@/types';
 
 // ─── Fetch wrapper ──────────────────────────────────────────────
@@ -183,11 +191,25 @@ export const employeeApi = {
 // ─── Action Logs ────────────────────────────────────────────────
 
 export const actionLogApi = {
-  getAll: async (containerQr?: string): Promise<ActionLog[]> => {
-    const params = containerQr
-      ? `?containerQr=${encodeURIComponent(containerQr)}`
-      : '';
-    return apiFetch<ActionLog[]>(`/action-logs${params}`);
+  getAll: async (params?: {
+    containerQr?: string;
+    action?: string;
+    employeeId?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<ActionLog>> => {
+    const searchParams = new URLSearchParams();
+    if (params?.containerQr) searchParams.set('containerQr', params.containerQr);
+    if (params?.action) searchParams.set('action', params.action);
+    if (params?.employeeId) searchParams.set('employeeId', params.employeeId);
+    if (params?.from) searchParams.set('from', params.from);
+    if (params?.to) searchParams.set('to', params.to);
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    const qs = searchParams.toString();
+    return apiFetch<PaginatedResponse<ActionLog>>(`/action-logs${qs ? `?${qs}` : ''}`);
   },
 };
 
@@ -283,6 +305,105 @@ export const reportsApi = {
     return apiFetch<ActionLog[]>(
       `/reports/container-history/${encodeURIComponent(qr)}`,
     );
+  },
+
+  getEnhancedDashboard: async (): Promise<EnhancedDashboard> => {
+    return apiFetch<EnhancedDashboard>('/reports/enhanced-dashboard');
+  },
+};
+
+// ─── Locations ─────────────────────────────────────────────────
+
+export const locationApi = {
+  getZones: async (): Promise<Zone[]> => {
+    return apiFetch<Zone[]>('/locations/zones');
+  },
+
+  getZone: async (id: string): Promise<Zone> => {
+    return apiFetch<Zone>(`/locations/zones/${id}`);
+  },
+
+  createZone: async (d: { name: string }): Promise<Zone> => {
+    return apiFetch<Zone>('/locations/zones', {
+      method: 'POST',
+      body: JSON.stringify(d),
+    });
+  },
+
+  updateZone: async (id: string, d: { name?: string }): Promise<Zone> => {
+    return apiFetch<Zone>(`/locations/zones/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(d),
+    });
+  },
+
+  deleteZone: async (id: string) => {
+    await apiFetch(`/locations/zones/${id}`, { method: 'DELETE' });
+  },
+
+  getRack: async (id: string): Promise<Rack> => {
+    return apiFetch<Rack>(`/locations/racks/${id}`);
+  },
+
+  createRack: async (d: { name: string; zoneId: string }): Promise<Rack> => {
+    return apiFetch<Rack>('/locations/racks', {
+      method: 'POST',
+      body: JSON.stringify(d),
+    });
+  },
+
+  updateRack: async (id: string, d: { name?: string }): Promise<Rack> => {
+    return apiFetch<Rack>(`/locations/racks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(d),
+    });
+  },
+
+  deleteRack: async (id: string) => {
+    await apiFetch(`/locations/racks/${id}`, { method: 'DELETE' });
+  },
+
+  getShelf: async (id: string): Promise<Shelf> => {
+    return apiFetch<Shelf>(`/locations/shelves/${id}`);
+  },
+
+  createShelf: async (d: { name: string; rackId: string }): Promise<Shelf> => {
+    return apiFetch<Shelf>('/locations/shelves', {
+      method: 'POST',
+      body: JSON.stringify(d),
+    });
+  },
+
+  updateShelf: async (id: string, d: { name?: string }): Promise<Shelf> => {
+    return apiFetch<Shelf>(`/locations/shelves/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(d),
+    });
+  },
+
+  deleteShelf: async (id: string) => {
+    await apiFetch(`/locations/shelves/${id}`, { method: 'DELETE' });
+  },
+};
+
+// ─── Pick List ─────────────────────────────────────────────────
+
+export const pickListApi = {
+  getPickList: async (date?: string): Promise<PickListData> => {
+    const params = date ? `?date=${encodeURIComponent(date)}` : '';
+    return apiFetch<PickListData>(`/pick-list${params}`);
+  },
+
+  getSummary: async (): Promise<PickListSummary> => {
+    return apiFetch<PickListSummary>('/pick-list/summary');
+  },
+};
+
+// ─── QR Manager ────────────────────────────────────────────────
+
+export const qrManagerApi = {
+  getSummary: async (): Promise<QrSummary> => {
+    return apiFetch<QrSummary>('/containers/qr-summary');
   },
 };
 

@@ -1,49 +1,32 @@
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Package,
-  Zap,
-  FlaskConical,
-  Beaker,
-  Leaf,
-  Users,
-  QrCode,
+  ClipboardList,
+  Compass,
+  ScanLine,
+  FileText,
   BarChart3,
-  FlaskRound,
-  Box,
+  QrCode,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const mainNav = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/operations', label: 'Operations', icon: Zap },
-  { to: '/containers', label: 'Containers', icon: Package },
-  { to: '/experiments', label: 'Experiments', icon: FlaskRound },
+const navItems = [
+  { to: '/pick-list', label: 'Pick List', icon: ClipboardList },
+  { to: '/library', label: 'Library', icon: Compass },
+  { to: '/scan', label: 'Scan', icon: ScanLine },
+  { to: '/logs', label: 'Logs', icon: FileText },
   { to: '/reports', label: 'Reports', icon: BarChart3 },
-];
-
-const dataNav = [
-  { to: '/container-types', label: 'Container Types', icon: Box },
-  { to: '/media-recipes', label: 'Media Recipes', icon: FlaskConical },
-  { to: '/media-batches', label: 'Media Batches', icon: Beaker },
-  { to: '/culture-types', label: 'Culture Types', icon: Leaf },
-  { to: '/employees', label: 'Employees', icon: Users },
-];
-
-const toolsNav = [
-  { to: '/qr-generator', label: 'QR Generator', icon: QrCode },
+  { to: '/qr-manager', label: 'QR Manager', icon: QrCode },
 ];
 
 function NavItem({ to, label, icon: Icon }: { to: string; label: string; icon: React.ComponentType<{ className?: string }> }) {
   return (
     <NavLink
       to={to}
-      end={to === '/'}
       className={({ isActive }) =>
         cn(
           'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
           isActive
-            ? 'bg-gray-100 text-gray-900'
+            ? 'bg-indigo-50 text-indigo-700'
             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
         )
       }
@@ -64,19 +47,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-        {mainNav.map((item) => (
-          <NavItem key={item.to} {...item} />
-        ))}
-
-        <div className="my-3 border-t border-gray-200" />
-
-        {dataNav.map((item) => (
-          <NavItem key={item.to} {...item} />
-        ))}
-
-        <div className="my-3 border-t border-gray-200" />
-
-        {toolsNav.map((item) => (
+        {navItems.map((item) => (
           <NavItem key={item.to} {...item} />
         ))}
       </nav>

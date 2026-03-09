@@ -27,6 +27,7 @@ export interface Container {
   mediaId: string | null;
   cultureId: string | null;
   parentId: string | null;
+  shelfId: string | null;
   notes: string | null;
   cultureDate: string | null;
   subcultureInterval: number | null;
@@ -39,6 +40,7 @@ export interface Container {
   parent?: Container | null;
   children?: Container[];
   logs?: (ActionLog & { employee: Employee })[];
+  shelf?: Shelf | null;
 }
 
 export interface MediaRecipe {
@@ -187,4 +189,78 @@ export interface ExperimentEntry {
   createdBy: string;
   createdAt: string;
   creator: Employee;
+}
+
+// Locations
+export interface Zone {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  racks?: Rack[];
+  _count?: { racks: number; shelves: number; containers: number };
+}
+
+export interface Rack {
+  id: string;
+  name: string;
+  zoneId: string;
+  createdAt: string;
+  updatedAt: string;
+  zone?: Zone;
+  shelves?: Shelf[];
+  _count?: { shelves: number; containers: number };
+}
+
+export interface Shelf {
+  id: string;
+  name: string;
+  rackId: string;
+  createdAt: string;
+  updatedAt: string;
+  rack?: Rack & { zone?: Zone };
+  containers?: Container[];
+  _count?: { containers: number };
+}
+
+// Pick List
+export interface PickListData {
+  dueSoon: Container[];
+  expired: Container[];
+  completed: (ActionLog & { employee: Employee; container: Container })[];
+}
+
+export interface PickListSummary {
+  dueSoonCount: number;
+  expiredCount: number;
+  completedCount: number;
+  total: number;
+}
+
+// Enhanced Dashboard
+export interface EnhancedDashboard {
+  activeCultures: { count: number; change: number };
+  dueThisWeek: { count: number; change: number };
+  totalContainers: { count: number; change: number };
+  discardRate: { rate: number; change: number };
+  statusDistribution: { status: string; count: number; percentage: number }[];
+  weeklyActivity: { day: string; processed: number; discarded: number }[];
+  upcomingWorkload: { date: string; dueCount: number }[];
+}
+
+// QR Manager
+export interface QrSummary {
+  active: number;
+  generated: number;
+  archived: number;
+  containers: Container[];
+}
+
+// Paginated response
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }

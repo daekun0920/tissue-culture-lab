@@ -51,6 +51,7 @@ export class ContainersService {
         culture: true,
         parent: true,
         children: true,
+        shelf: { include: { rack: { include: { zone: true } } } },
         logs: {
           include: { employee: true },
           orderBy: { timestamp: 'desc' },
@@ -76,6 +77,7 @@ export class ContainersService {
         containerType: true,
         culture: true,
         media: { include: { recipe: true } },
+        shelf: { include: { rack: { include: { zone: true } } } },
       },
       orderBy: { updatedAt: 'desc' },
     });
@@ -650,5 +652,37 @@ export class ContainersService {
     });
 
     return { created, skipped };
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  QR Manager summary                                                */
+  /* ------------------------------------------------------------------ */
+
+  async getQrSummary() {
+    const [activeCount, totalCount, discardedCount, containers] =
+      await Promise.all([
+        this.prisma.container.count({
+          where: { status: { not: ContainerStatus.DISCARDED } },
+        }),
+        this.prisma.container.count(),
+        this.prisma.container.count({
+          where: { status: ContainerStatus.DISCARDED },
+        }),
+        this.prisma.container.findMany({
+          include: {
+            containerType: true,
+            culture: true,
+            shelf: { include: { rack: { include: { zone: true } } } },
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+
+    return {
+      active: activeCount,
+      generated: totalCount,
+      archived: discardedCount,
+      containers,
+    };
   }
 }

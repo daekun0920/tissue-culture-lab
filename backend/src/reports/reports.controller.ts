@@ -26,4 +26,9 @@ export class ReportsController {
   getContainerHistory(@Param('qr') qr: string) {
     return this.reportsService.getContainerHistory(qr);
   }
+
+  @Get('enhanced-dashboard')
+  getEnhancedDashboard() {
+    return this.reportsService.getEnhancedDashboard();
+  }
 }

@@ -20,3 +20,10 @@ export function useSystemReport(from?: string, to?: string) {
     queryFn: () => reportsApi.getSystemReport(from, to),
   });
 }
+
+export function useEnhancedDashboard() {
+  return useQuery({
+    queryKey: queryKeys.enhancedDashboard,
+    queryFn: reportsApi.getEnhancedDashboard,
+  });
+}

@@ -21,6 +21,7 @@ function makeContainer(overrides: Partial<Container> = {}): Container {
     mediaId: null,
     cultureId: null,
     parentId: null,
+    shelfId: null,
     notes: null,
     cultureDate: null,
     subcultureInterval: null,

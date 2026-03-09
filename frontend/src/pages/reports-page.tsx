@@ -1,201 +1,165 @@
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell,
+  PieChart, Pie, Cell, ScatterChart, Scatter,
+  type PieLabelRenderProps,
 } from 'recharts';
-import { useEmployees } from '@/hooks/use-employees';
-import { useEmployeeReport, useSystemReport } from '@/hooks/use-reports';
+import { Leaf, Clock, Package, AlertTriangle } from 'lucide-react';
+import { StatCard } from '@/components/reports/stat-card';
+import { useEnhancedDashboard } from '@/hooks/use-reports';
 
-const COLORS = ['#22c55e', '#f59e0b', '#6b7280', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899'];
+const DONUT_COLORS: Record<string, string> = {
+  HAS_CULTURE: '#22c55e',
+  HAS_MEDIA: '#f59e0b',
+  EMPTY: '#6b7280',
+  DISCARDED: '#ef4444',
+};
 
 export default function ReportsPage() {
-  const [tab, setTab] = useState('system');
-  const [employeeId, setEmployeeId] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const { data, isLoading } = useEnhancedDashboard();
 
-  const { data: employees } = useEmployees();
-  const { data: empReport, isLoading: empLoading, isError: empError } = useEmployeeReport(employeeId, from || undefined, to || undefined);
-  const { data: sysReport, isLoading: sysLoading, isError: sysError } = useSystemReport(from || undefined, to || undefined);
+  if (isLoading) {
+    return <div className="py-8 text-center text-gray-400">Loading...</div>;
+  }
 
-  useEffect(() => {
-    if (from && to && from > to) {
-      toast.error('"From" date must be before "To" date');
-      setTo('');
-    }
-  }, [from, to]);
+  if (!data) {
+    return <div className="py-8 text-center text-gray-400">No data available</div>;
+  }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Reports & Analytics</h2>
+      <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="bg-gray-100">
-          <TabsTrigger value="system">System Reports</TabsTrigger>
-          <TabsTrigger value="employee">Employee Reports</TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {/* Date range */}
-      <div className="flex items-end gap-4">
-        <div className="space-y-1">
-          <Label className="text-xs">From</Label>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">To</Label>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
-        </div>
-        {tab === 'employee' && (
-          <div className="space-y-1">
-            <Label className="text-xs">Employee</Label>
-            <Select value={employeeId} onValueChange={setEmployeeId}>
-              <SelectTrigger className="w-48"><SelectValue placeholder="Select employee" /></SelectTrigger>
-              <SelectContent>
-                {(employees ?? []).map((e) => (
-                  <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 gap-4">
+        <StatCard
+          title="Active Cultures"
+          value={data.activeCultures.count}
+          change={data.activeCultures.change}
+          icon={Leaf}
+          iconColor="text-green-600"
+          iconBg="bg-green-50"
+        />
+        <StatCard
+          title="Due This Week"
+          value={data.dueThisWeek.count}
+          change={data.dueThisWeek.change}
+          icon={Clock}
+          iconColor="text-red-600"
+          iconBg="bg-red-50"
+        />
+        <StatCard
+          title="Total Containers"
+          value={data.totalContainers.count}
+          change={data.totalContainers.change}
+          icon={Package}
+          iconColor="text-green-600"
+          iconBg="bg-green-50"
+        />
+        <StatCard
+          title="Discard Rate"
+          value={`${data.discardRate.rate}%`}
+          change={data.discardRate.change}
+          icon={AlertTriangle}
+          iconColor="text-red-600"
+          iconBg="bg-red-50"
+        />
       </div>
 
-      {/* System Reports */}
-      {tab === 'system' && (
-        sysLoading ? <p className="text-gray-500">Loading...</p> : sysError ? <p className="text-red-500">Failed to load system report.</p> : sysReport && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { label: 'Active Cultures', value: sysReport.activeCultures, color: 'text-green-700' },
-                { label: 'Total Containers', value: sysReport.totalContainers, color: 'text-slate-900' },
-                { label: 'Media Batches', value: sysReport.mediaBatchesUsed, color: 'text-amber-700' },
-                { label: 'Discard Rate', value: `${sysReport.discardRate}%`, color: 'text-red-700' },
-              ].map((m) => (
-                <Card key={m.label}>
-                  <CardContent className="p-5">
-                    <p className="text-sm text-gray-500">{m.label}</p>
-                    <p className={`text-3xl font-bold mt-1 ${m.color}`}>{m.value}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Status Distribution */}
-              <Card>
-                <CardHeader><CardTitle className="text-base">Status Distribution</CardTitle></CardHeader>
-                <CardContent>
-                  {Object.entries(sysReport.statusCounts).some(([, v]) => Number(v) > 0) ? (
-                    <ResponsiveContainer width="100%" height={250}>
-                      <PieChart>
-                        <Pie
-                          data={Object.entries(sysReport.statusCounts).map(([name, value]) => ({ name, value }))}
-                          dataKey="value"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={80}
-                          label={({ name, value }) => `${name}: ${value}`}
-                        >
-                          {Object.entries(sysReport.statusCounts).map((_, i) => (
-                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <p className="py-8 text-center text-gray-400">No data to display</p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Action Breakdown */}
-              <Card>
-                <CardHeader><CardTitle className="text-base">Action Breakdown</CardTitle></CardHeader>
-                <CardContent>
-                  {sysReport.actionBreakdown?.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={250}>
-                      <BarChart data={sysReport.actionBreakdown}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="action" tick={{ fontSize: 10 }} />
-                        <YAxis />
-                        <Tooltip />
-                        <Bar dataKey="count" fill="#3b82f6" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <p className="py-8 text-center text-gray-400">No data to display</p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        )
-      )}
-
-      {/* Employee Reports */}
-      {tab === 'employee' && (
-        !employeeId ? (
-          <p className="text-gray-400 text-sm py-8 text-center">Select an employee to view their report.</p>
-        ) : empLoading ? (
-          <p className="text-gray-500">Loading...</p>
-        ) : empError ? (
-          <p className="text-red-500">Failed to load employee report.</p>
-        ) : empReport && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { label: 'Total Actions', value: empReport.totalActions, color: 'text-slate-900' },
-                { label: 'Containers Processed', value: empReport.containersProcessed, color: 'text-blue-700' },
-                { label: 'Contamination Rate', value: `${empReport.contaminationRate}%`, color: 'text-red-700' },
-                { label: 'Cultures Added', value: empReport.actionBreakdown.find(a => a.action === 'ADD_CULTURE')?.count ?? 0, color: 'text-green-700' },
-              ].map((m) => (
-                <Card key={m.label}>
-                  <CardContent className="p-5">
-                    <p className="text-sm text-gray-500">{m.label}</p>
-                    <p className={`text-3xl font-bold mt-1 ${m.color}`}>{m.value}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            <Card>
-              <CardHeader><CardTitle className="text-base">Action Breakdown</CardTitle></CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Action</TableHead>
-                      <TableHead>Count</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {empReport.actionBreakdown.map((ab) => (
-                      <TableRow key={ab.action}>
-                        <TableCell className="font-medium">{ab.action}</TableCell>
-                        <TableCell>{ab.count}</TableCell>
-                      </TableRow>
+      {/* Charts */}
+      <div className="space-y-6">
+        {/* Container Status Distribution - Donut */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Container Status Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.statusDistribution.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={data.statusDistribution}
+                    dataKey="count"
+                    nameKey="status"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    label={(props: PieLabelRenderProps & { status?: string; percentage?: number }) =>
+                      `${props.status ?? ''}: ${props.percentage ?? 0}%`
+                    }
+                  >
+                    {data.statusDistribution.map((entry) => (
+                      <Cell
+                        key={entry.status}
+                        fill={DONUT_COLORS[entry.status] ?? '#94a3b8'}
+                      />
                     ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-        )
-      )}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="py-8 text-center text-gray-400">No data</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Weekly Activity - Bar Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Weekly Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={data.weeklyActivity}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="day" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="processed" fill="#4F46E5" name="Processed" />
+                <Bar dataKey="discarded" fill="#ef4444" name="Discarded" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Upcoming Workload - Scatter Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Upcoming Workload (30 days)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.upcomingWorkload.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <ScatterChart>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 10 }}
+                    tickFormatter={(v: string) => {
+                      const d = new Date(v);
+                      return `${d.getMonth() + 1}/${d.getDate()}`;
+                    }}
+                  />
+                  <YAxis dataKey="dueCount" />
+                  <Tooltip
+                    formatter={(value: unknown) => [Number(value), 'Due containers']}
+                    labelFormatter={(label: unknown) =>
+                      new Date(String(label)).toLocaleDateString()
+                    }
+                  />
+                  <Scatter data={data.upcomingWorkload} fill="#4F46E5" />
+                </ScatterChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="py-8 text-center text-gray-400">
+                No upcoming workload
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

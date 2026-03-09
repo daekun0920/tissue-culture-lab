@@ -6,8 +6,24 @@ export class ActionLogsController {
   constructor(private readonly actionLogsService: ActionLogsService) {}
 
   @Get()
-  findAll(@Query('containerQr') containerQr?: string) {
-    return this.actionLogsService.findAll(containerQr);
+  findAll(
+    @Query('containerQr') containerQr?: string,
+    @Query('action') action?: string,
+    @Query('employeeId') employeeId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.actionLogsService.findAll({
+      containerQr,
+      action,
+      employeeId,
+      from,
+      to,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 
   @Get(':id')

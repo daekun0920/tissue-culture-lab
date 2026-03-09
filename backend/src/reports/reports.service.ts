@@ -172,4 +172,186 @@ export class ReportsService {
 
     return { qrCode: qr, timeline: logs };
   }
+
+  async getEnhancedDashboard() {
+    const now = new Date();
+    const oneWeekAgo = new Date(now);
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const twoWeeksAgo = new Date(now);
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+    const endOfWeek = new Date(now);
+    endOfWeek.setDate(endOfWeek.getDate() + 7);
+
+    // Current stats
+    const [
+      activeCultures,
+      prevActiveCultures,
+      dueThisWeek,
+      prevDueThisWeek,
+      totalContainers,
+      prevTotalContainers,
+      statusGroups,
+      thisWeekDiscards,
+      prevWeekDiscards,
+      thisWeekLogs,
+      upcomingDue,
+    ] = await Promise.all([
+      // Active cultures now
+      this.prisma.container.count({
+        where: { status: ContainerStatus.HAS_CULTURE },
+      }),
+      // Active cultures a week ago (approximate via logs)
+      this.prisma.actionLog.count({
+        where: {
+          action: { in: ['ADD_CULTURE', 'SUBCULTURE'] },
+          timestamp: { gte: twoWeeksAgo, lt: oneWeekAgo },
+        },
+      }),
+      // Due this week
+      this.prisma.container.count({
+        where: {
+          status: ContainerStatus.HAS_CULTURE,
+          dueSubcultureDate: { gte: now, lte: endOfWeek },
+        },
+      }),
+      // Due prev week (for trend)
+      this.prisma.container.count({
+        where: {
+          status: ContainerStatus.HAS_CULTURE,
+          dueSubcultureDate: { gte: oneWeekAgo, lte: now },
+        },
+      }),
+      // Total containers
+      this.prisma.container.count(),
+      // Total containers a week ago
+      this.prisma.container.count({
+        where: { createdAt: { lt: oneWeekAgo } },
+      }),
+      // Status distribution
+      this.prisma.container.groupBy({
+        by: ['status'],
+        _count: { status: true },
+      }),
+      // This week discards
+      this.prisma.actionLog.count({
+        where: {
+          action: { in: ['DISCARD_CULTURE', 'DISCARD_CONTAINER'] },
+          timestamp: { gte: oneWeekAgo },
+        },
+      }),
+      // Previous week discards
+      this.prisma.actionLog.count({
+        where: {
+          action: { in: ['DISCARD_CULTURE', 'DISCARD_CONTAINER'] },
+          timestamp: { gte: twoWeeksAgo, lt: oneWeekAgo },
+        },
+      }),
+      // This week's logs for daily activity chart
+      this.prisma.actionLog.findMany({
+        where: { timestamp: { gte: oneWeekAgo } },
+        select: { action: true, timestamp: true },
+      }),
+      // Upcoming due containers for scatter chart (next 30 days)
+      this.prisma.container.findMany({
+        where: {
+          status: ContainerStatus.HAS_CULTURE,
+          dueSubcultureDate: {
+            gte: now,
+            lte: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+          },
+        },
+        select: { dueSubcultureDate: true },
+      }),
+    ]);
+
+    // Calculate percentage changes
+    const calcChange = (current: number, previous: number) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    // Status distribution for donut chart
+    const totalForDonut = statusGroups.reduce(
+      (sum, g) => sum + g._count.status,
+      0,
+    );
+    const statusDistribution = statusGroups.map((g) => ({
+      status: g.status,
+      count: g._count.status,
+      percentage:
+        totalForDonut > 0
+          ? Math.round((g._count.status / totalForDonut) * 10000) / 100
+          : 0,
+    }));
+
+    // Weekly activity for bar chart (group by day of week)
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const weeklyActivity = days.map((day) => ({
+      day,
+      processed: 0,
+      discarded: 0,
+    }));
+    for (const log of thisWeekLogs) {
+      const dayIndex = new Date(log.timestamp).getDay();
+      if (
+        ['ADD_CULTURE', 'SUBCULTURE', 'PREPARE_MEDIA'].includes(log.action)
+      ) {
+        weeklyActivity[dayIndex].processed++;
+      } else if (
+        ['DISCARD_CULTURE', 'DISCARD_CONTAINER'].includes(log.action)
+      ) {
+        weeklyActivity[dayIndex].discarded++;
+      }
+    }
+
+    // Upcoming workload for scatter chart (group by date)
+    const workloadMap = new Map<string, number>();
+    for (const c of upcomingDue) {
+      if (c.dueSubcultureDate) {
+        const dateKey = c.dueSubcultureDate.toISOString().split('T')[0];
+        workloadMap.set(dateKey, (workloadMap.get(dateKey) ?? 0) + 1);
+      }
+    }
+    const upcomingWorkload = Array.from(workloadMap.entries())
+      .map(([date, dueCount]) => ({ date, dueCount }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Discard rate
+    const discardRate =
+      totalContainers > 0
+        ? Math.round((thisWeekDiscards / totalContainers) * 10000) / 100
+        : 0;
+    const prevDiscardRate =
+      prevTotalContainers > 0
+        ? Math.round(
+            (prevWeekDiscards / prevTotalContainers) * 10000,
+          ) / 100
+        : 0;
+
+    return {
+      activeCultures: {
+        count: activeCultures,
+        change: calcChange(activeCultures, prevActiveCultures),
+      },
+      dueThisWeek: {
+        count: dueThisWeek,
+        change: calcChange(dueThisWeek, prevDueThisWeek),
+      },
+      totalContainers: {
+        count: totalContainers,
+        change: calcChange(totalContainers, prevTotalContainers),
+      },
+      discardRate: {
+        rate: discardRate,
+        change: calcChange(
+          Math.round(discardRate),
+          Math.round(prevDiscardRate),
+        ),
+      },
+      statusDistribution,
+      weeklyActivity,
+      upcomingWorkload,
+    };
+  }
 }

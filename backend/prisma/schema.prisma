@@ -27,31 +27,73 @@ model ContainerType {
   @@map("container_types")
 }
 
+model Zone {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  racks Rack[]
+
+  @@map("zones")
+}
+
+model Rack {
+  id        String   @id @default(uuid())
+  name      String
+  zoneId    String   @map("zone_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  zone    Zone    @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  shelves Shelf[]
+
+  @@unique([zoneId, name])
+  @@map("racks")
+}
+
+model Shelf {
+  id        String   @id @default(uuid())
+  name      String
+  rackId    String   @map("rack_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  rack       Rack        @relation(fields: [rackId], references: [id], onDelete: Restrict)
+  containers Container[]
+
+  @@unique([rackId, name])
+  @@map("shelves")
+}
+
 model Container {
-  qrCode            String          @id @map("qr_code")
-  status            ContainerStatus @default(EMPTY)
-  containerTypeId   String?         @map("container_type_id")
-  mediaId           String?         @map("media_id")
-  cultureId         String?         @map("culture_id")
-  parentId          String?         @map("parent_id")
-  notes             String?
-  cultureDate       DateTime?       @map("culture_date")
-  subcultureInterval Int?           @map("subculture_interval")
-  dueSubcultureDate DateTime?       @map("due_subculture_date")
-  createdAt         DateTime        @default(now()) @map("created_at")
-  updatedAt         DateTime        @updatedAt @map("updated_at")
+  qrCode             String          @id @map("qr_code")
+  status             ContainerStatus @default(EMPTY)
+  containerTypeId    String?         @map("container_type_id")
+  mediaId            String?         @map("media_id")
+  cultureId          String?         @map("culture_id")
+  parentId           String?         @map("parent_id")
+  shelfId            String?         @map("shelf_id")
+  notes              String?
+  cultureDate        DateTime?       @map("culture_date")
+  subcultureInterval Int?            @map("subculture_interval")
+  dueSubcultureDate  DateTime?       @map("due_subculture_date")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
 
   containerType      ContainerType?      @relation(fields: [containerTypeId], references: [id], onDelete: SetNull)
   media              MediaBatch?         @relation(fields: [mediaId], references: [id], onDelete: SetNull)
   culture            CultureType?        @relation(fields: [cultureId], references: [id], onDelete: SetNull)
   parent             Container?          @relation("ContainerLineage", fields: [parentId], references: [qrCode], onDelete: SetNull)
   children           Container[]         @relation("ContainerLineage")
+  shelf              Shelf?              @relation(fields: [shelfId], references: [id], onDelete: SetNull)
   logs               ActionLog[]
   experimentCultures ExperimentCulture[]
 
-  @@map("containers")
   @@index([status])
   @@index([dueSubcultureDate])
+  @@index([shelfId])
+  @@map("containers")
 }
 
 model MediaRecipe {
@@ -77,17 +119,17 @@ model MediaBatch {
   recipe     MediaRecipe @relation(fields: [recipeId], references: [id], onDelete: Restrict)
   containers Container[]
 
-  @@map("media_batches")
   @@index([recipeId])
+  @@map("media_batches")
 }
 
 model CultureType {
-  id                        String @id @default(uuid())
-  name                      String @unique
+  id                        String  @id @default(uuid())
+  name                      String  @unique
   species                   String?
   clone                     String?
   origin                    String?
-  defaultSubcultureInterval Int    @default(28) @map("default_subculture_interval")
+  defaultSubcultureInterval Int     @default(28) @map("default_subculture_interval")
 
   containers Container[]
 
@@ -120,10 +162,10 @@ model ActionLog {
   employee  Employee  @relation(fields: [performedBy], references: [id], onDelete: Restrict)
   container Container @relation(fields: [containerQr], references: [qrCode], onDelete: Cascade)
 
-  @@map("action_logs")
   @@index([timestamp])
   @@index([performedBy])
   @@index([containerQr])
+  @@map("action_logs")
 }
 
 model Experiment {

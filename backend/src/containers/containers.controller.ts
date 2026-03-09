@@ -25,6 +25,11 @@ export class ContainersController {
     return this.containersService.lookup(query.q ?? '');
   }
 
+  @Get('qr-summary')
+  getQrSummary() {
+    return this.containersService.getQrSummary();
+  }
+
   @Get('validate-action')
   validateAction(
     @Query('action') action: string,

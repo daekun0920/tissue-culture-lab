@@ -9,6 +9,8 @@ import { EmployeesModule } from './employees/employees.module';
 import { ActionLogsModule } from './action-logs/action-logs.module';
 import { ReportsModule } from './reports/reports.module';
 import { ExperimentsModule } from './experiments/experiments.module';
+import { LocationsModule } from './locations/locations.module';
+import { PickListModule } from './pick-list/pick-list.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { ExperimentsModule } from './experiments/experiments.module';
     ActionLogsModule,
     ReportsModule,
     ExperimentsModule,
+    LocationsModule,
+    PickListModule,
   ],
 })
 export class AppModule {}
