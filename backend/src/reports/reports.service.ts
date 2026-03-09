@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { ContainerStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -9,8 +9,15 @@ export class ReportsService {
   async getEmployeeReport(employeeId: string, from?: string, to?: string) {
     const dateFilter: Record<string, unknown> = {};
     if (from) dateFilter.gte = new Date(from);
-    if (to) dateFilter.lte = new Date(to);
+    if (to) {
+      const toDate = new Date(to);
+      toDate.setHours(23, 59, 59, 999);
+      dateFilter.lte = toDate;
+    }
     const hasDateFilter = Object.keys(dateFilter).length > 0;
+    if (from && to && new Date(from) > new Date(to)) {
+      throw new BadRequestException('from date must be before to date');
+    }
 
     const where = {
       performedBy: employeeId,
@@ -70,8 +77,15 @@ export class ReportsService {
   async getSystemReport(from?: string, to?: string) {
     const dateFilter: Record<string, unknown> = {};
     if (from) dateFilter.gte = new Date(from);
-    if (to) dateFilter.lte = new Date(to);
+    if (to) {
+      const toDate = new Date(to);
+      toDate.setHours(23, 59, 59, 999);
+      dateFilter.lte = toDate;
+    }
     const hasDateFilter = Object.keys(dateFilter).length > 0;
+    if (from && to && new Date(from) > new Date(to)) {
+      throw new BadRequestException('from date must be before to date');
+    }
 
     const actionWhere = hasDateFilter ? { timestamp: dateFilter } : {};
 
@@ -139,6 +153,7 @@ export class ReportsService {
         totalContainers > 0
           ? Math.round((totalDiscards / totalContainers) * 10000) / 100
           : 0,
+      totalDiscards,
       contaminationDiscards,
       subcultureCount,
       actionBreakdown: actionBreakdown.map((ab) => ({

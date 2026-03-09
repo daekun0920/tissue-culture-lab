@@ -77,7 +77,18 @@ export class ExperimentsService {
       endDate?: string;
     },
   ) {
-    await this.findOne(id);
+    const experiment = await this.findOne(id);
+    if (data.status !== undefined) {
+      const validStatuses = ['active', 'completed', 'cancelled'];
+      if (!validStatuses.includes(data.status)) {
+        throw new BadRequestException(`Invalid status: ${data.status}`);
+      }
+      if (experiment.status !== 'active') {
+        throw new BadRequestException(
+          `Cannot change status of ${experiment.status} experiment`,
+        );
+      }
+    }
     return this.prisma.experiment.update({
       where: { id },
       data: {
@@ -93,7 +104,10 @@ export class ExperimentsService {
   }
 
   async addCultures(id: string, dto: AddCultureDto) {
-    await this.findOne(id);
+    const experiment = await this.findOne(id);
+    if (experiment.status !== 'active') {
+      throw new BadRequestException(`Cannot modify ${experiment.status} experiment`);
+    }
 
     const results: { containerQr: string; added: boolean; reason?: string }[] =
       [];
@@ -158,7 +172,10 @@ export class ExperimentsService {
   }
 
   async addEntry(id: string, dto: AddEntryDto) {
-    await this.findOne(id);
+    const experiment = await this.findOne(id);
+    if (experiment.status !== 'active') {
+      throw new BadRequestException(`Cannot modify ${experiment.status} experiment`);
+    }
 
     return this.prisma.experimentEntry.create({
       data: {
