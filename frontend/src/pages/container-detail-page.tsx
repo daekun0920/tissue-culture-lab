@@ -33,8 +33,8 @@ export default function ContainerDetailPage() {
         <p className="text-gray-500">
           No container found with QR code <span className="font-mono font-medium">{qr}</span>.
         </p>
-        <Button variant="outline" className="mt-4" onClick={() => navigate('/containers')}>
-          Back to Containers
+        <Button variant="outline" className="mt-4" onClick={() => navigate('/scan')}>
+          Back to Scan
         </Button>
       </div>
     );
@@ -60,8 +60,8 @@ export default function ContainerDetailPage() {
             )}
           </div>
         </div>
-        <Button onClick={() => navigate('/operations', { state: { qrCodes: [container.qrCode] } })}>
-          Perform Action
+        <Button variant="outline" onClick={() => navigate('/scan')}>
+          Back to Scan
         </Button>
       </div>
 
