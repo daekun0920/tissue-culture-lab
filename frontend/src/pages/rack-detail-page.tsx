@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Package, Plus, Pencil } from 'lucide-react';
+import { ArrowLeft, Package, Plus, Pencil, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -96,9 +96,10 @@ export default function RackDetailPage() {
       {/* Shelves list */}
       <div className="space-y-3">
         {rack.shelves?.map((shelf) => (
-          <div
+          <button
             key={shelf.id}
-            className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-4"
+            onClick={() => navigate(`/library/shelves/${shelf.id}`)}
+            className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition-colors text-left"
           >
             <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-50">
               <Package className="h-5 w-5 text-gray-600" />
@@ -109,7 +110,8 @@ export default function RackDetailPage() {
                 {shelf._count?.containers ?? 0} {(shelf._count?.containers ?? 0) === 1 ? 'container' : 'containers'}
               </p>
             </div>
-          </div>
+            <ChevronRight className="h-5 w-5 text-gray-400 shrink-0" />
+          </button>
         ))}
 
         {(!rack.shelves || rack.shelves.length === 0) && (

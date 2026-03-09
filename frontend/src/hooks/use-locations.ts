@@ -88,13 +88,24 @@ export function useDeleteRack() {
   });
 }
 
+export function useShelfDetail(id: string) {
+  return useQuery({
+    queryKey: queryKeys.locations.shelf(id),
+    queryFn: () => locationApi.getShelf(id),
+    enabled: !!id,
+  });
+}
+
 export function useCreateShelf() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { name: string; rackId: string }) =>
       locationApi.createShelf(data),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: queryKeys.locations.zones });
+      qc.invalidateQueries({
+        queryKey: queryKeys.locations.rack(variables.rackId),
+      });
     },
   });
 }
@@ -104,8 +115,11 @@ export function useUpdateShelf() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: { name?: string } }) =>
       locationApi.updateShelf(id, data),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: queryKeys.locations.zones });
+      qc.invalidateQueries({
+        queryKey: queryKeys.locations.shelf(variables.id),
+      });
     },
   });
 }

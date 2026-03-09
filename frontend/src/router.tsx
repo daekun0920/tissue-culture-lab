@@ -4,6 +4,7 @@ import PickListPage from '@/pages/pick-list-page';
 import LibraryPage from '@/pages/library-page';
 import ZoneDetailPage from '@/pages/zone-detail-page';
 import RackDetailPage from '@/pages/rack-detail-page';
+import ShelfDetailPage from '@/pages/shelf-detail-page';
 import ScanPage from '@/pages/scan-page';
 import LogsPage from '@/pages/logs-page';
 import ReportsPage from '@/pages/reports-page';
@@ -20,6 +21,7 @@ export const router = createBrowserRouter([
       { path: 'library', element: <LibraryPage /> },
       { path: 'library/zones/:zoneId', element: <ZoneDetailPage /> },
       { path: 'library/racks/:rackId', element: <RackDetailPage /> },
+      { path: 'library/shelves/:shelfId', element: <ShelfDetailPage /> },
       { path: 'scan', element: <ScanPage /> },
       { path: 'logs', element: <LogsPage /> },
       { path: 'reports', element: <ReportsPage /> },
