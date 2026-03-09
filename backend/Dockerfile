@@ -15,4 +15,4 @@ ENV NODE_ENV=production
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/main"]
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/src/main"]

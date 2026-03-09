@@ -12,7 +12,17 @@ async function bootstrap() {
   const allowedOrigins = frontendUrl.split(',').map((s) => s.trim());
 
   app.enableCors({
-    origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      // Allow explicitly listed origins
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Allow any Vercel preview deployment for this project
+      if (origin.match(/https:\/\/tissue-culture-.*\.vercel\.app$/)) {
+        return callback(null, true);
+      }
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     credentials: true,
   });
