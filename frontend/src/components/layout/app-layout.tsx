@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
@@ -7,6 +8,13 @@ import {
   Package,
   FlaskRound,
   BarChart3,
+  MoreHorizontal,
+  Box,
+  FlaskConical,
+  Beaker,
+  Leaf,
+  Users,
+  QrCode,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,7 +26,18 @@ const mobileNav = [
   { to: '/reports', label: 'Reports', icon: BarChart3 },
 ];
 
+const moreNav = [
+  { to: '/container-types', label: 'Container Types', icon: Box },
+  { to: '/culture-types', label: 'Culture Types', icon: Leaf },
+  { to: '/media-recipes', label: 'Media Recipes', icon: FlaskConical },
+  { to: '/media-batches', label: 'Media Batches', icon: Beaker },
+  { to: '/employees', label: 'Employees', icon: Users },
+  { to: '/qr-generator', label: 'QR Generator', icon: QrCode },
+];
+
 export function AppLayout() {
+  const [moreOpen, setMoreOpen] = useState(false);
+
   return (
     <div className="flex h-screen bg-[#F8FAFC]">
       <Sidebar />
@@ -46,6 +65,43 @@ export function AppLayout() {
               <span>{label}</span>
             </NavLink>
           ))}
+          <div className="relative">
+            <button
+              onClick={() => setMoreOpen((prev) => !prev)}
+              className={cn(
+                'flex flex-col items-center gap-0.5 px-2 py-1 text-xs',
+                moreOpen ? 'text-gray-900' : 'text-gray-400',
+              )}
+            >
+              <MoreHorizontal className="h-5 w-5" />
+              <span>More</span>
+            </button>
+            {moreOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
+                <div className="absolute bottom-full right-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg py-2 w-48 z-50">
+                  {moreNav.map(({ to, label, icon: Icon }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      onClick={() => setMoreOpen(false)}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-center gap-3 px-4 py-2 text-sm',
+                          isActive
+                            ? 'text-gray-900 bg-gray-50'
+                            : 'text-gray-600 hover:bg-gray-50',
+                        )
+                      }
+                    >
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </NavLink>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </nav>
       </div>
     </div>
