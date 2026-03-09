@@ -64,7 +64,7 @@ export function CultureTab() {
             <p className="text-sm text-gray-500">
               {culture.species && <span className="italic">{culture.species}</span>}
               {culture.species && ' \u00b7 '}
-              {culture._count?.containers ?? 0} containers
+              {culture._count?.containers ?? 0} {(culture._count?.containers ?? 0) === 1 ? 'container' : 'containers'}
             </p>
           </div>
         </div>

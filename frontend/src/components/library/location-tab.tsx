@@ -54,8 +54,8 @@ export function LocationTab() {
           <div className="flex-1 min-w-0">
             <p className="font-medium text-gray-900">{zone.name}</p>
             <p className="text-sm text-gray-500">
-              {zone._count?.racks ?? 0} racks &middot;{' '}
-              {zone._count?.containers ?? 0} containers
+              {zone._count?.racks ?? 0} {(zone._count?.racks ?? 0) === 1 ? 'rack' : 'racks'} &middot;{' '}
+              {zone._count?.containers ?? 0} {(zone._count?.containers ?? 0) === 1 ? 'container' : 'containers'}
             </p>
           </div>
           <ChevronRight className="h-5 w-5 text-gray-400 shrink-0" />

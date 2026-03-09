@@ -106,7 +106,7 @@ export default function RackDetailPage() {
             <div className="flex-1 min-w-0">
               <p className="font-medium text-gray-900">{shelf.name}</p>
               <p className="text-sm text-gray-500">
-                {shelf._count?.containers ?? 0} containers
+                {shelf._count?.containers ?? 0} {(shelf._count?.containers ?? 0) === 1 ? 'container' : 'containers'}
               </p>
             </div>
           </div>

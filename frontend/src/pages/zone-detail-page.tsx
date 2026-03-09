@@ -103,8 +103,8 @@ export default function ZoneDetailPage() {
             <div className="flex-1 min-w-0">
               <p className="font-medium text-gray-900">{rack.name}</p>
               <p className="text-sm text-gray-500">
-                {rack._count?.shelves ?? 0} shelves &middot;{' '}
-                {rack._count?.containers ?? 0} containers
+                {rack._count?.shelves ?? 0} {(rack._count?.shelves ?? 0) === 1 ? 'shelf' : 'shelves'} &middot;{' '}
+                {rack._count?.containers ?? 0} {(rack._count?.containers ?? 0) === 1 ? 'container' : 'containers'}
               </p>
             </div>
             <ChevronRight className="h-5 w-5 text-gray-400 shrink-0" />
