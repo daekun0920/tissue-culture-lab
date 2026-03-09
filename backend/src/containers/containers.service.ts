@@ -2,8 +2,10 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { ContainerStatus } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
 import { BatchActionDto } from './dto/batch-action.dto';
 import {
@@ -13,9 +15,28 @@ import {
   ALL_ACTIONS,
 } from './container-state-machine';
 
+const DEFAULT_SUBCULTURE_INTERVAL = 28;
+
 @Injectable()
 export class ContainersService {
+  private readonly logger = new Logger(ContainersService.name);
+
+  private static readonly VALID_DISCARD_REASONS: readonly string[] = [
+    'contamination',
+    'senescence',
+    'experiment_end',
+    'other',
+  ];
+
   constructor(private readonly prisma: PrismaService) {}
+
+  /* ------------------------------------------------------------------ */
+  /*  QR code format validation                                          */
+  /* ------------------------------------------------------------------ */
+
+  private isValidQrCode(qr: unknown): qr is string {
+    return typeof qr === 'string' && qr.length > 0 && qr === qr.trim();
+  }
 
   /* ------------------------------------------------------------------ */
   /*  Single container by QR code                                       */
@@ -117,7 +138,7 @@ export class ContainersService {
       REGISTER_CONTAINER: 'unregistered',
       PREPARE_MEDIA: 'EMPTY',
       ADD_CULTURE: 'HAS_MEDIA',
-      DISCARD_CULTURE: 'HAS_CULTURE or HAS_MEDIA',
+      DISCARD_CULTURE: 'HAS_CULTURE',
       DISCARD_CONTAINER: 'EMPTY, HAS_MEDIA, or HAS_CULTURE',
       SUBCULTURE: 'HAS_CULTURE',
       EXIT_CULTURE: 'HAS_CULTURE',
@@ -153,6 +174,16 @@ export class ContainersService {
 
     for (const qr of qrCodes) {
       try {
+        // Bug 8: QR code format validation
+        if (!this.isValidQrCode(qr)) {
+          errors.push({
+            qrCode: qr,
+            reason:
+              'Invalid QR code format: must be a non-empty string with no leading/trailing whitespace',
+          });
+          continue;
+        }
+
         if (action === 'REGISTER_CONTAINER') {
           const existing = await this.prisma.container.findUnique({
             where: { qrCode: qr },
@@ -163,6 +194,20 @@ export class ContainersService {
               reason: 'Container already registered',
             });
             continue;
+          }
+
+          // Validate containerTypeId exists if provided
+          if (payload?.containerTypeId) {
+            const ct = await this.prisma.containerType.findUnique({
+              where: { id: payload.containerTypeId },
+            });
+            if (!ct) {
+              errors.push({
+                qrCode: qr,
+                reason: `Container type ${payload.containerTypeId} not found`,
+              });
+              continue;
+            }
           }
 
           const created = await this.prisma.$transaction(async (tx) => {
@@ -196,187 +241,326 @@ export class ContainersService {
           continue;
         }
 
-        const container = await this.prisma.container.findUnique({
-          where: { qrCode: qr },
-          include: { culture: true },
-        });
-
-        if (!container) {
-          errors.push({ qrCode: qr, reason: 'Container not found' });
-          continue;
-        }
-
-        if (!isValidForAction(container.status, action)) {
+        // Bug 3: Validate required mediaBatchId for PREPARE_MEDIA
+        if (action === 'PREPARE_MEDIA' && !payload?.mediaBatchId) {
           errors.push({
             qrCode: qr,
-            reason: `Cannot perform ${action} on container with status ${container.status}. Valid actions: ${getValidActions(container.status).join(', ')}`,
+            reason: 'PREPARE_MEDIA requires a mediaBatchId',
           });
           continue;
         }
 
-        // Build the update data depending on the action
-        const updateData: Record<string, unknown> = { status: targetStatus };
-        const metadataObj: Record<string, unknown> = {};
-
-        switch (action) {
-          case 'PREPARE_MEDIA':
-            if (payload?.mediaBatchId) {
-              updateData.mediaId = payload.mediaBatchId;
-              metadataObj.mediaBatchId = payload.mediaBatchId;
-            }
-            break;
-
-          case 'ADD_CULTURE': {
-            if (payload?.cultureTypeId) {
-              updateData.cultureId = payload.cultureTypeId;
-              metadataObj.cultureTypeId = payload.cultureTypeId;
-            }
-            if (payload?.parentQr) {
-              updateData.parentId = payload.parentQr;
-              metadataObj.parentQr = payload.parentQr;
-            }
-            updateData.cultureDate = new Date();
-
-            // Calculate due subculture date
-            if (payload?.dueSubcultureDate) {
-              updateData.dueSubcultureDate = new Date(
-                payload.dueSubcultureDate,
-              );
-            } else {
-              const interval =
-                payload?.subcultureInterval ??
-                container.culture?.defaultSubcultureInterval ??
-                28;
-              updateData.subcultureInterval = interval;
-              const due = new Date();
-              due.setDate(due.getDate() + interval);
-              updateData.dueSubcultureDate = due;
-            }
-
-            if (payload?.subcultureInterval) {
-              updateData.subcultureInterval = payload.subcultureInterval;
-            }
-            break;
-          }
-
-          case 'DISCARD_CULTURE':
-            updateData.cultureId = null;
-            updateData.cultureDate = null;
-            updateData.subcultureInterval = null;
-            updateData.dueSubcultureDate = null;
-            // Keep mediaId if going from HAS_MEDIA
-            if (container.status === ContainerStatus.HAS_CULTURE) {
-              updateData.mediaId = null;
-            }
-            metadataObj.reason = payload?.reason ?? 'unspecified';
-            break;
-
-          case 'DISCARD_CONTAINER':
-            metadataObj.reason = payload?.reason ?? 'unspecified';
-            break;
-
-          case 'SUBCULTURE':
-            // Source container goes EMPTY
-            updateData.cultureId = null;
-            updateData.mediaId = null;
-            updateData.cultureDate = null;
-            updateData.subcultureInterval = null;
-            updateData.dueSubcultureDate = null;
-            metadataObj.targetQrCodes = payload?.targetQrCodes ?? [];
-            break;
-
-          case 'EXIT_CULTURE':
-            updateData.cultureId = null;
-            updateData.mediaId = null;
-            updateData.cultureDate = null;
-            updateData.subcultureInterval = null;
-            updateData.dueSubcultureDate = null;
-            metadataObj.exitType = payload?.exitType ?? 'unspecified';
-            break;
-
-          case 'WASH':
-            updateData.mediaId = null;
-            updateData.cultureId = null;
-            updateData.parentId = null;
-            updateData.cultureDate = null;
-            updateData.subcultureInterval = null;
-            updateData.dueSubcultureDate = null;
-            updateData.notes = null;
-            break;
+        // Bug 4: Validate required cultureTypeId for ADD_CULTURE
+        if (action === 'ADD_CULTURE' && !payload?.cultureTypeId) {
+          errors.push({
+            qrCode: qr,
+            reason: 'ADD_CULTURE requires a cultureTypeId',
+          });
+          continue;
         }
 
-        const previousStatus = container.status;
+        // Bug 5: Validate required reason for DISCARD actions
+        if (action === 'DISCARD_CULTURE' || action === 'DISCARD_CONTAINER') {
+          const reason = payload?.reason;
+          if (
+            !reason ||
+            !ContainersService.VALID_DISCARD_REASONS.includes(reason)
+          ) {
+            errors.push({
+              qrCode: qr,
+              reason: `${action} requires a valid reason: ${ContainersService.VALID_DISCARD_REASONS.join(', ')}`,
+            });
+            continue;
+          }
+        }
 
-        const updated = await this.prisma.$transaction(async (tx) => {
-          const updatedContainer = await tx.container.update({
-            where: { qrCode: qr },
-            data: updateData,
-          });
+        // Bug 1 & 2: All container reads and validations inside the transaction
+        const txResult = await this.prisma.$transaction(
+          async (
+            tx,
+          ): Promise<
+            | { error: string }
+            | { error: null; qrCode: string; status: ContainerStatus }
+          > => {
+            // Re-read container inside transaction for fresh data
+            const container = await tx.container.findUnique({
+              where: { qrCode: qr },
+              include: { culture: true },
+            });
 
-          await tx.actionLog.create({
-            data: {
-              action,
-              performedBy: employeeId,
-              containerQr: qr,
-              previousStatus,
-              newStatus: targetStatus,
-              note: payload?.note ?? null,
-              metadata: JSON.stringify(metadataObj),
-            },
-          });
+            if (!container) {
+              return { error: 'Container not found' };
+            }
 
-          // For SUBCULTURE, link target containers to source as parent
-          if (action === 'SUBCULTURE' && payload?.targetQrCodes?.length) {
-            for (const targetQr of payload.targetQrCodes) {
-              const target = await tx.container.findUnique({
-                where: { qrCode: targetQr },
+            // Re-validate status inside transaction
+            if (!isValidForAction(container.status, action)) {
+              return {
+                error: `Cannot perform ${action} on container with status ${container.status}. Valid actions: ${getValidActions(container.status).join(', ')}`,
+              };
+            }
+
+            // Build the update data depending on the action
+            const updateData: Record<string, unknown> = {
+              status: targetStatus,
+            };
+            const metadataObj: Record<string, unknown> = {};
+
+            switch (action) {
+              case 'PREPARE_MEDIA':
+                if (payload?.mediaBatchId) {
+                  updateData.mediaId = payload.mediaBatchId;
+                  metadataObj.mediaBatchId = payload.mediaBatchId;
+                }
+                break;
+
+              case 'ADD_CULTURE': {
+                if (payload?.cultureTypeId) {
+                  updateData.cultureId = payload.cultureTypeId;
+                  metadataObj.cultureTypeId = payload.cultureTypeId;
+                }
+                if (payload?.parentQr) {
+                  updateData.parentId = payload.parentQr;
+                  metadataObj.parentQr = payload.parentQr;
+                }
+                updateData.cultureDate = new Date();
+
+                // Calculate due subculture date
+                if (payload?.dueSubcultureDate) {
+                  updateData.dueSubcultureDate = new Date(
+                    payload.dueSubcultureDate,
+                  );
+                } else {
+                  const interval =
+                    payload?.subcultureInterval ??
+                    container.culture?.defaultSubcultureInterval ??
+                    DEFAULT_SUBCULTURE_INTERVAL;
+                  updateData.subcultureInterval = interval;
+                  const due = new Date();
+                  due.setDate(due.getDate() + interval);
+                  updateData.dueSubcultureDate = due;
+                }
+
+                if (payload?.subcultureInterval) {
+                  updateData.subcultureInterval = payload.subcultureInterval;
+                }
+                break;
+              }
+
+              case 'DISCARD_CULTURE':
+                updateData.cultureId = null;
+                updateData.cultureDate = null;
+                updateData.subcultureInterval = null;
+                updateData.dueSubcultureDate = null;
+                updateData.mediaId = null;
+                updateData.parentId = null;
+                metadataObj.reason = payload?.reason ?? 'unspecified';
+                break;
+
+              case 'DISCARD_CONTAINER':
+                metadataObj.reason = payload?.reason ?? 'unspecified';
+                break;
+
+              case 'SUBCULTURE':
+                // Source container goes EMPTY
+                updateData.cultureId = null;
+                updateData.mediaId = null;
+                updateData.cultureDate = null;
+                updateData.subcultureInterval = null;
+                updateData.dueSubcultureDate = null;
+                metadataObj.targetQrCodes = payload?.targetQrCodes ?? [];
+                break;
+
+              case 'EXIT_CULTURE':
+                updateData.cultureId = null;
+                updateData.mediaId = null;
+                updateData.cultureDate = null;
+                updateData.subcultureInterval = null;
+                updateData.dueSubcultureDate = null;
+                updateData.parentId = null;
+                metadataObj.exitType = payload?.exitType ?? 'unspecified';
+                break;
+
+              case 'WASH':
+                updateData.mediaId = null;
+                updateData.cultureId = null;
+                updateData.parentId = null;
+                updateData.cultureDate = null;
+                updateData.subcultureInterval = null;
+                updateData.dueSubcultureDate = null;
+                updateData.notes = null;
+                break;
+            }
+
+            const previousStatus = container.status;
+
+            // FK validation for PREPARE_MEDIA
+            if (action === 'PREPARE_MEDIA' && payload?.mediaBatchId) {
+              const batch = await tx.mediaBatch.findUnique({
+                where: { id: payload.mediaBatchId },
               });
-              if (target && target.status === ContainerStatus.HAS_MEDIA) {
-                await tx.container.update({
-                  where: { qrCode: targetQr },
-                  data: {
-                    status: ContainerStatus.HAS_CULTURE,
-                    cultureId: container.cultureId,
-                    parentId: qr,
-                    cultureDate: new Date(),
-                    subcultureInterval: container.subcultureInterval ?? 28,
-                    dueSubcultureDate: (() => {
-                      const d = new Date();
-                      d.setDate(
-                        d.getDate() + (container.subcultureInterval ?? 28),
-                      );
-                      return d;
-                    })(),
-                  },
-                });
-
-                await tx.actionLog.create({
-                  data: {
-                    action: 'ADD_CULTURE',
-                    performedBy: employeeId,
-                    containerQr: targetQr,
-                    previousStatus: target.status,
-                    newStatus: ContainerStatus.HAS_CULTURE,
-                    note: `Subcultured from ${qr}`,
-                    metadata: JSON.stringify({
-                      sourceQr: qr,
-                      subcultured: true,
-                    }),
-                  },
-                });
+              if (!batch) {
+                return {
+                  error: `Media batch ${payload.mediaBatchId} not found`,
+                };
               }
             }
-          }
 
-          return updatedContainer;
-        });
+            // FK validation for ADD_CULTURE
+            if (action === 'ADD_CULTURE') {
+              if (payload?.cultureTypeId) {
+                const ct = await tx.cultureType.findUnique({
+                  where: { id: payload.cultureTypeId },
+                });
+                if (!ct) {
+                  return {
+                    error: `Culture type ${payload.cultureTypeId} not found`,
+                  };
+                }
+              }
+              if (payload?.parentQr) {
+                const parent = await tx.container.findUnique({
+                  where: { qrCode: payload.parentQr },
+                });
+                if (!parent) {
+                  return {
+                    error: `Parent container ${payload.parentQr} not found`,
+                  };
+                }
+              }
+            }
 
-        results.push({ qrCode: updated.qrCode, status: updated.status });
+            // Bug 2: SUBCULTURE target validation inside transaction
+            if (action === 'SUBCULTURE') {
+              const targetQrCodes = payload?.targetQrCodes ?? [];
+              if (targetQrCodes.length === 0) {
+                return {
+                  error:
+                    'SUBCULTURE requires at least one target QR code',
+                };
+              }
+              const invalidTargets: string[] = [];
+              for (const tqr of targetQrCodes) {
+                const t = await tx.container.findUnique({
+                  where: { qrCode: tqr },
+                });
+                if (!t) {
+                  invalidTargets.push(`${tqr} not found`);
+                } else if (t.status !== ContainerStatus.HAS_MEDIA) {
+                  invalidTargets.push(
+                    `${tqr} is ${t.status}, must be HAS_MEDIA`,
+                  );
+                }
+              }
+              if (invalidTargets.length > 0) {
+                return {
+                  error: `Invalid targets: ${invalidTargets.join(', ')}`,
+                };
+              }
+            }
+
+            const updatedContainer = await tx.container.update({
+              where: { qrCode: qr },
+              data: updateData,
+            });
+
+            await tx.actionLog.create({
+              data: {
+                action,
+                performedBy: employeeId,
+                containerQr: qr,
+                previousStatus,
+                newStatus: targetStatus,
+                note: payload?.note ?? null,
+                metadata: JSON.stringify(metadataObj),
+              },
+            });
+
+            // For SUBCULTURE, link target containers to source as parent
+            if (action === 'SUBCULTURE' && payload?.targetQrCodes?.length) {
+              for (const targetQr of payload.targetQrCodes) {
+                const target = await tx.container.findUnique({
+                  where: { qrCode: targetQr },
+                });
+                if (target && target.status === ContainerStatus.HAS_MEDIA) {
+                  await tx.container.update({
+                    where: { qrCode: targetQr },
+                    data: {
+                      status: ContainerStatus.HAS_CULTURE,
+                      cultureId: container.cultureId,
+                      parentId: qr,
+                      cultureDate: new Date(),
+                      subcultureInterval:
+                        container.subcultureInterval ?? DEFAULT_SUBCULTURE_INTERVAL,
+                      dueSubcultureDate: (() => {
+                        const d = new Date();
+                        d.setDate(
+                          d.getDate() +
+                            (container.subcultureInterval ?? DEFAULT_SUBCULTURE_INTERVAL),
+                        );
+                        return d;
+                      })(),
+                    },
+                  });
+
+                  await tx.actionLog.create({
+                    data: {
+                      action: 'ADD_CULTURE',
+                      performedBy: employeeId,
+                      containerQr: targetQr,
+                      previousStatus: target.status,
+                      newStatus: ContainerStatus.HAS_CULTURE,
+                      note: `Subcultured from ${qr}`,
+                      metadata: JSON.stringify({
+                        sourceQr: qr,
+                        subcultured: true,
+                      }),
+                    },
+                  });
+                }
+              }
+            }
+
+            return {
+              error: null,
+              qrCode: updatedContainer.qrCode,
+              status: updatedContainer.status,
+            };
+          },
+        );
+
+        if (txResult.error !== null) {
+          errors.push({ qrCode: qr, reason: txResult.error });
+          continue;
+        }
+
+        results.push({ qrCode: txResult.qrCode, status: txResult.status });
       } catch (err) {
-        errors.push({
-          qrCode: qr,
-          reason: err instanceof Error ? err.message : 'Unknown error',
-        });
+        // Bug 6: Log error with stack trace
+        console.error('Batch action error for', qr, err);
+
+        let reason = 'Unknown error';
+        if (err instanceof PrismaClientKnownRequestError) {
+          switch (err.code) {
+            case 'P2002':
+              reason =
+                'Unique constraint violation: a record with this key already exists';
+              break;
+            case 'P2003':
+              reason =
+                'Foreign key constraint violation: referenced record not found';
+              break;
+            case 'P2025':
+              reason =
+                'Record not found: the record to update or delete does not exist';
+              break;
+            default:
+              reason = `Database error (${err.code}): ${err.message}`;
+          }
+        } else if (err instanceof Error) {
+          reason = err.message;
+        }
+
+        errors.push({ qrCode: qr, reason });
       }
     }
 
@@ -408,13 +592,14 @@ export class ContainersService {
         }),
       ]);
 
-    const statusCounts = statusGroups.reduce(
-      (acc, group) => {
-        acc[group.status] = group._count.status;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
+    // Bug 9: Initialize with all ContainerStatus values set to 0
+    const statusCounts: Record<string, number> = {};
+    for (const status of Object.values(ContainerStatus)) {
+      statusCounts[status] = 0;
+    }
+    for (const group of statusGroups) {
+      statusCounts[group.status] = group._count.status;
+    }
 
     return { statusCounts, recentLogs, totalCount, overdueCultures };
   }
@@ -432,7 +617,16 @@ export class ContainersService {
       throw new BadRequestException('qrCodes array must not be empty');
     }
 
+    // Bug 8: Validate QR code format
+    const invalidQrs = qrCodes.filter((qr) => !this.isValidQrCode(qr));
+    if (invalidQrs.length > 0) {
+      throw new BadRequestException(
+        `Invalid QR code format: ${invalidQrs.join(', ')}`,
+      );
+    }
+
     let created = 0;
+    const skipped: string[] = [];
 
     await this.prisma.$transaction(async (tx) => {
       for (const qr of qrCodes) {
@@ -449,10 +643,12 @@ export class ContainersService {
             },
           });
           created++;
+        } else {
+          skipped.push(qr);
         }
       }
     });
 
-    return { created };
+    return { created, skipped };
   }
 }
