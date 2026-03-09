@@ -9,9 +9,14 @@ interface CameraScannerProps {
 
 export function CameraScanner({ onScan, onClose }: CameraScannerProps) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const onScanRef = useRef(onScan);
   const [error, setError] = useState<string | null>(null);
 
+  // Keep callback ref in sync without triggering useEffect re-runs
+  onScanRef.current = onScan;
+
   useEffect(() => {
+    let cancelled = false;
     const scanner = new Html5Qrcode('camera-scanner-region');
     scannerRef.current = scanner;
 
@@ -23,6 +28,7 @@ export function CameraScanner({ onScan, onClose }: CameraScannerProps) {
           qrbox: { width: 250, height: 250 },
         },
         (decodedText) => {
+          if (cancelled) return;
           // Extract QR code from URL if needed
           let code = decodedText.trim();
           try {
@@ -32,26 +38,30 @@ export function CameraScanner({ onScan, onClose }: CameraScannerProps) {
           } catch {
             // Not a URL, use as-is
           }
-          onScan(code);
+          onScanRef.current(code);
         },
         () => {
           // QR code not found in frame — ignore
         },
       )
       .catch((err: unknown) => {
+        if (cancelled) return;
         setError(
           err instanceof Error ? err.message : 'Failed to start camera',
         );
       });
 
     return () => {
-      scanner
-        .stop()
-        .catch(() => {
-          // scanner might already be stopped
-        });
+      cancelled = true;
+      try {
+        if (scanner.isScanning) {
+          scanner.stop().catch(() => {});
+        }
+      } catch {
+        // scanner.isScanning or stop() may throw if not initialized
+      }
     };
-  }, [onScan]);
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center">
