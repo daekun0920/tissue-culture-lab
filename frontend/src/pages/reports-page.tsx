@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,13 @@ export default function ReportsPage() {
   const { data: employees } = useEmployees();
   const { data: empReport, isLoading: empLoading, isError: empError } = useEmployeeReport(employeeId, from || undefined, to || undefined);
   const { data: sysReport, isLoading: sysLoading, isError: sysError } = useSystemReport(from || undefined, to || undefined);
+
+  useEffect(() => {
+    if (from && to && from > to) {
+      toast.error('"From" date must be before "To" date');
+      setTo('');
+    }
+  }, [from, to]);
 
   return (
     <div className="space-y-6">
@@ -89,24 +97,28 @@ export default function ReportsPage() {
               <Card>
                 <CardHeader><CardTitle className="text-base">Status Distribution</CardTitle></CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                      <Pie
-                        data={Object.entries(sysReport.statusCounts).map(([name, value]) => ({ name, value }))}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        label={({ name, value }) => `${name}: ${value}`}
-                      >
-                        {Object.entries(sysReport.statusCounts).map((_, i) => (
-                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  {Object.entries(sysReport.statusCounts).some(([, v]) => Number(v) > 0) ? (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={Object.entries(sysReport.statusCounts).map(([name, value]) => ({ name, value }))}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          label={({ name, value }) => `${name}: ${value}`}
+                        >
+                          {Object.entries(sysReport.statusCounts).map((_, i) => (
+                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="py-8 text-center text-gray-400">No data to display</p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -114,15 +126,19 @@ export default function ReportsPage() {
               <Card>
                 <CardHeader><CardTitle className="text-base">Action Breakdown</CardTitle></CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={sysReport.actionBreakdown}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="action" tick={{ fontSize: 10 }} />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#3b82f6" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {sysReport.actionBreakdown?.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={sysReport.actionBreakdown}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="action" tick={{ fontSize: 10 }} />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="#3b82f6" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="py-8 text-center text-gray-400">No data to display</p>
+                  )}
                 </CardContent>
               </Card>
             </div>

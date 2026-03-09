@@ -162,10 +162,12 @@ function ExperimentDetail({ id }: { id: string }) {
       });
       toast.success('Entry added');
       setEntryContent('');
+      setEntryType('log');
     } catch { toast.error('Failed to add entry'); }
   }
 
   async function handleStatusChange(status: string) {
+    if (!window.confirm(`Are you sure you want to mark this experiment as "${status}"?`)) return;
     try {
       await updateMutation.mutateAsync({
         id,
