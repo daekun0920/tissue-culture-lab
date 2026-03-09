@@ -31,7 +31,7 @@ import {
 import type { ContainerType } from '@/types';
 
 export default function ContainerTypesPage() {
-  const { data: types, isLoading } = useContainerTypes();
+  const { data: types, isLoading, isError } = useContainerTypes();
   const createMutation = useCreateContainerType();
   const updateMutation = useUpdateContainerType();
   const deleteMutation = useDeleteContainerType();
@@ -43,7 +43,6 @@ export default function ContainerTypesPage() {
   const [material, setMaterial] = useState('');
   const [isVented, setIsVented] = useState(false);
   const [isReusable, setIsReusable] = useState(true);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   function openCreate() {
     setEditing(null);
@@ -90,10 +89,10 @@ export default function ContainerTypesPage() {
   }
 
   async function handleDelete(id: string) {
+    if (!window.confirm('Are you sure you want to delete this?')) return;
     try {
       await deleteMutation.mutateAsync(id);
       toast.success('Container type deleted');
-      setDeleteConfirmId(null);
     } catch {
       toast.error('Failed to delete container type');
     }
@@ -158,6 +157,8 @@ export default function ContainerTypesPage() {
         <CardContent>
           {isLoading ? (
             <p className="py-8 text-center text-gray-400">Loading...</p>
+          ) : isError ? (
+            <p className="text-red-500">Failed to load data.</p>
           ) : !types?.length ? (
             <p className="py-8 text-center text-gray-400">No container types found.</p>
           ) : (
@@ -188,14 +189,7 @@ export default function ContainerTypesPage() {
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Button variant="outline" size="sm" onClick={() => openEdit(ct)}>Edit</Button>
-                        {deleteConfirmId === ct.id ? (
-                          <div className="flex gap-1">
-                            <Button variant="destructive" size="sm" onClick={() => handleDelete(ct.id)} disabled={deleteMutation.isPending}>Confirm</Button>
-                            <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
-                          </div>
-                        ) : (
-                          <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(ct.id)}>Delete</Button>
-                        )}
+                        <Button variant="outline" size="sm" onClick={() => handleDelete(ct.id)} disabled={deleteMutation.isPending}>Delete</Button>
                       </div>
                     </TableCell>
                   </TableRow>

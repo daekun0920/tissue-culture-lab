@@ -30,14 +30,13 @@ import {
 } from '@/hooks/use-employees';
 
 export default function EmployeesPage() {
-  const { data: employees, isLoading } = useEmployees();
+  const { data: employees, isLoading, isError } = useEmployees();
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee();
   const deleteMutation = useDeleteEmployee();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState('');
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -67,10 +66,10 @@ export default function EmployeesPage() {
   }
 
   async function handleDelete(id: string) {
+    if (!window.confirm('Are you sure you want to delete this?')) return;
     try {
       await deleteMutation.mutateAsync(id);
       toast.success('Employee deleted successfully');
-      setDeleteConfirmId(null);
     } catch {
       toast.error('Failed to delete employee');
     }
@@ -125,6 +124,8 @@ export default function EmployeesPage() {
             <p className="py-8 text-center text-gray-400">
               Loading employees...
             </p>
+          ) : isError ? (
+            <p className="text-red-500">Failed to load data.</p>
           ) : !employees?.length ? (
             <p className="py-8 text-center text-gray-400">
               No employees found. Add your first employee to get started.
@@ -168,33 +169,14 @@ export default function EmployeesPage() {
                           {emp.isActive ? 'Deactivate' : 'Activate'}
                         </Button>
 
-                        {deleteConfirmId === emp.id ? (
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDelete(emp.id)}
-                              disabled={deleteMutation.isPending}
-                            >
-                              Confirm
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setDeleteConfirmId(null)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDeleteConfirmId(emp.id)}
-                          >
-                            Delete
-                          </Button>
-                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(emp.id)}
+                          disabled={deleteMutation.isPending}
+                        >
+                          Delete
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

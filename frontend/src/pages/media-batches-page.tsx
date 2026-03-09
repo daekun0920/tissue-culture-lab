@@ -19,7 +19,7 @@ import { useMediaBatches, useCreateMediaBatch, useDeleteMediaBatch } from '@/hoo
 import { useMediaRecipes } from '@/hooks/use-media-recipes';
 
 export default function MediaBatchesPage() {
-  const { data: batches, isLoading } = useMediaBatches();
+  const { data: batches, isLoading, isError } = useMediaBatches();
   const { data: recipes } = useMediaRecipes();
   const createMutation = useCreateMediaBatch();
   const deleteMutation = useDeleteMediaBatch();
@@ -29,7 +29,6 @@ export default function MediaBatchesPage() {
   const [batchNumber, setBatchNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -49,10 +48,10 @@ export default function MediaBatchesPage() {
   }
 
   async function handleDelete(id: string) {
+    if (!window.confirm('Are you sure you want to delete this?')) return;
     try {
       await deleteMutation.mutateAsync(id);
       toast.success('Batch deleted');
-      setDeleteConfirmId(null);
     } catch { toast.error('Failed to delete batch'); }
   }
 
@@ -98,6 +97,8 @@ export default function MediaBatchesPage() {
         <CardContent>
           {isLoading ? (
             <p className="py-8 text-center text-gray-400">Loading...</p>
+          ) : isError ? (
+            <p className="text-red-500">Failed to load data.</p>
           ) : !batches?.length ? (
             <p className="py-8 text-center text-gray-400">No batches found.</p>
           ) : (
@@ -119,14 +120,7 @@ export default function MediaBatchesPage() {
                     <TableCell>{new Date(batch.datePrep).toLocaleDateString()}</TableCell>
                     <TableCell>{batch._count?.containers ?? 0}</TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      {deleteConfirmId === batch.id ? (
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="destructive" size="sm" onClick={() => handleDelete(batch.id)} disabled={deleteMutation.isPending}>Confirm</Button>
-                          <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
-                        </div>
-                      ) : (
-                        <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(batch.id)}>Delete</Button>
-                      )}
+                      <Button variant="outline" size="sm" onClick={() => handleDelete(batch.id)} disabled={deleteMutation.isPending}>Delete</Button>
                     </TableCell>
                   </TableRow>
                 ))}

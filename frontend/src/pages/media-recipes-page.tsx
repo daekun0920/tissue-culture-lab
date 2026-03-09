@@ -47,7 +47,7 @@ const emptyForm: RecipeFormData = {
 };
 
 export default function MediaRecipesPage() {
-  const { data: recipes, isLoading } = useMediaRecipes();
+  const { data: recipes, isLoading, isError } = useMediaRecipes();
   const createMutation = useCreateMediaRecipe();
   const updateMutation = useUpdateMediaRecipe();
   const deleteMutation = useDeleteMediaRecipe();
@@ -55,7 +55,6 @@ export default function MediaRecipesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<MediaRecipe | null>(null);
   const [form, setForm] = useState<RecipeFormData>(emptyForm);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   function openCreateDialog() {
     setEditingRecipe(null);
@@ -77,6 +76,14 @@ export default function MediaRecipesPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isNaN(parseFloat(form.phLevel))) {
+      toast.error('Valid pH level is required');
+      return;
+    }
+    if (isNaN(parseFloat(form.agar))) {
+      toast.error('Valid agar amount is required');
+      return;
+    }
 
     const payload = {
       name: form.name,
@@ -103,10 +110,10 @@ export default function MediaRecipesPage() {
   }
 
   async function handleDelete(id: string) {
+    if (!window.confirm('Are you sure you want to delete this?')) return;
     try {
       await deleteMutation.mutateAsync(id);
       toast.success('Recipe deleted successfully');
-      setDeleteConfirmId(null);
     } catch {
       toast.error('Failed to delete recipe');
     }
@@ -215,6 +222,8 @@ export default function MediaRecipesPage() {
         <CardContent>
           {isLoading ? (
             <p className="py-8 text-center text-gray-400">Loading recipes...</p>
+          ) : isError ? (
+            <p className="text-red-500">Failed to load data.</p>
           ) : !recipes?.length ? (
             <p className="py-8 text-center text-gray-400">
               No recipes found. Create your first recipe to get started.
@@ -255,33 +264,14 @@ export default function MediaRecipesPage() {
                           Edit
                         </Button>
 
-                        {deleteConfirmId === recipe.id ? (
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDelete(recipe.id)}
-                              disabled={deleteMutation.isPending}
-                            >
-                              Confirm
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setDeleteConfirmId(null)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDeleteConfirmId(recipe.id)}
-                          >
-                            Delete
-                          </Button>
-                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(recipe.id)}
+                          disabled={deleteMutation.isPending}
+                        >
+                          Delete
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

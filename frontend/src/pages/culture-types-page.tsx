@@ -16,7 +16,7 @@ import {
 import type { CultureType } from '@/types';
 
 export default function CultureTypesPage() {
-  const { data: cultureTypes, isLoading } = useCultureTypes();
+  const { data: cultureTypes, isLoading, isError } = useCultureTypes();
   const createMutation = useCreateCultureType();
   const updateMutation = useUpdateCultureType();
   const deleteMutation = useDeleteCultureType();
@@ -28,7 +28,6 @@ export default function CultureTypesPage() {
   const [clone, setClone] = useState('');
   const [origin, setOrigin] = useState('');
   const [interval, setInterval] = useState('28');
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   function openCreateDialog() {
     setEditingType(null);
@@ -52,12 +51,13 @@ export default function CultureTypesPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const parsedInterval = parseInt(interval, 10);
     const data: Partial<CultureType> = {
       name,
       species: species || undefined,
       clone: clone || undefined,
       origin: origin || undefined,
-      defaultSubcultureInterval: parseInt(interval) || 28,
+      defaultSubcultureInterval: isNaN(parsedInterval) || parsedInterval < 1 ? 28 : parsedInterval,
     };
 
     try {
@@ -75,10 +75,10 @@ export default function CultureTypesPage() {
   }
 
   async function handleDelete(id: string) {
+    if (!window.confirm('Are you sure you want to delete this?')) return;
     try {
       await deleteMutation.mutateAsync(id);
       toast.success('Culture type deleted successfully');
-      setDeleteConfirmId(null);
     } catch {
       toast.error('Failed to delete culture type');
     }
@@ -139,6 +139,8 @@ export default function CultureTypesPage() {
         <CardContent>
           {isLoading ? (
             <p className="py-8 text-center text-gray-400">Loading culture types...</p>
+          ) : isError ? (
+            <p className="text-red-500">Failed to load data.</p>
           ) : !cultureTypes?.length ? (
             <p className="py-8 text-center text-gray-400">No culture types found.</p>
           ) : (
@@ -162,14 +164,7 @@ export default function CultureTypesPage() {
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Button variant="outline" size="sm" onClick={() => openEditDialog(ct)}>Edit</Button>
-                        {deleteConfirmId === ct.id ? (
-                          <div className="flex items-center gap-1">
-                            <Button variant="destructive" size="sm" onClick={() => handleDelete(ct.id)} disabled={deleteMutation.isPending}>Confirm</Button>
-                            <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
-                          </div>
-                        ) : (
-                          <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(ct.id)}>Delete</Button>
-                        )}
+                        <Button variant="outline" size="sm" onClick={() => handleDelete(ct.id)} disabled={deleteMutation.isPending}>Delete</Button>
                       </div>
                     </TableCell>
                   </TableRow>
