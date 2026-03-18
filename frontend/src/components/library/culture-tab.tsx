@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   useCultureTypes,
@@ -198,6 +199,7 @@ export function CultureTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Culture Template</DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">Enter details to create a new culture template</DialogDescription>
           </DialogHeader>
           {formFields(form, setForm)}
           <DialogFooter>
@@ -216,6 +218,7 @@ export function CultureTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Culture Template</DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">Update culture template information</DialogDescription>
           </DialogHeader>
           {formFields(editForm, setEditForm)}
           <DialogFooter>
@@ -237,11 +240,11 @@ export function CultureTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Culture Template</DialogTitle>
+            <DialogDescription className="text-sm text-gray-600">
+              Are you sure you want to delete <strong>{deleting?.name}</strong>? This
+              action cannot be undone.
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-gray-600">
-            Are you sure you want to delete <strong>{deleting?.name}</strong>? This
-            action cannot be undone.
-          </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
               Cancel

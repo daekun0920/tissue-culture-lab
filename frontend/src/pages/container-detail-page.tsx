@@ -11,6 +11,7 @@ import {
   getAvailableActions,
   type ActionConfig,
 } from '@/components/containers/container-action-dialog';
+import { formatEnum } from '@/lib/format';
 
 function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleString();
@@ -80,7 +81,7 @@ export default function ContainerDetailPage() {
           <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
             <div>
               <dt className="text-gray-500">Status</dt>
-              <dd className="font-medium text-gray-900">{container.status}</dd>
+              <dd className="font-medium text-gray-900">{formatEnum(container.status)}</dd>
             </div>
             <div>
               <dt className="text-gray-500">Last Updated</dt>
@@ -211,10 +212,10 @@ export default function ContainerDetailPage() {
                     <div className="absolute left-1.5 top-1.5 h-3 w-3 rounded-full border-2 border-gray-300 bg-white" />
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">{log.action}</Badge>
+                        <Badge variant="outline" className="text-xs">{formatEnum(log.action)}</Badge>
                         {log.previousStatus && log.newStatus && (
                           <span className="text-xs text-gray-400">
-                            {log.previousStatus} → {log.newStatus}
+                            {formatEnum(log.previousStatus)} → {formatEnum(log.newStatus)}
                           </span>
                         )}
                         <span className="text-xs text-gray-400">{formatTimestamp(log.timestamp)}</span>

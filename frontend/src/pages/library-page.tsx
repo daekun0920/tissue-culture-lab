@@ -11,7 +11,7 @@ export default function LibraryPage() {
       <h1 className="text-2xl font-bold text-gray-900">Library</h1>
 
       <Tabs defaultValue="locations" className="w-full">
-        <TabsList className="w-full grid grid-cols-5">
+        <TabsList className="w-full flex overflow-x-auto">
           <TabsTrigger value="locations">Locations</TabsTrigger>
           <TabsTrigger value="medium">Medium</TabsTrigger>
           <TabsTrigger value="culture">Culture</TabsTrigger>

@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   useEmployees,
@@ -138,6 +139,7 @@ export function EmployeeTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Employee</DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">Enter details to create a new employee</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Input
@@ -165,6 +167,7 @@ export function EmployeeTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Employee</DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">Update employee information</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Input
@@ -192,11 +195,11 @@ export function EmployeeTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Employee</DialogTitle>
+            <DialogDescription className="text-sm text-gray-600">
+              Are you sure you want to delete <strong>{deleting?.name}</strong>? This
+              action cannot be undone.
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-gray-600">
-            Are you sure you want to delete <strong>{deleting?.name}</strong>? This
-            action cannot be undone.
-          </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
               Cancel

@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { QrStats } from '@/components/qr-manager/qr-stats';
 import { QrCodeCard } from '@/components/qr-manager/qr-code-card';
@@ -269,9 +270,9 @@ export default function QrManagerPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Register New Containers</DialogTitle>
-            <p className="text-sm text-gray-500">
+            <DialogDescription className="text-sm text-gray-500">
               Enter QR codes to register as new containers in the system.
-            </p>
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">

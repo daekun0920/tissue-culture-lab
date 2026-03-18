@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   useContainerTypes,
@@ -207,6 +208,7 @@ export function ContainerTypeTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Container Type</DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">Enter details to create a new container type</DialogDescription>
           </DialogHeader>
           {formFields(form, setForm)}
           <DialogFooter>
@@ -228,6 +230,7 @@ export function ContainerTypeTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Container Type</DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">Update container type information</DialogDescription>
           </DialogHeader>
           {formFields(editForm, setEditForm)}
           <DialogFooter>
@@ -249,11 +252,11 @@ export function ContainerTypeTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Container Type</DialogTitle>
+            <DialogDescription className="text-sm text-gray-600">
+              Are you sure you want to delete <strong>{deleting?.name}</strong>? This
+              action cannot be undone.
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-gray-600">
-            Are you sure you want to delete <strong>{deleting?.name}</strong>? This
-            action cannot be undone.
-          </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
               Cancel

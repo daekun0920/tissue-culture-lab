@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   useZones,
@@ -148,6 +149,7 @@ export function LocationTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Zone</DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">Enter a name to create a new zone</DialogDescription>
           </DialogHeader>
           <Input
             placeholder="Zone name"
@@ -171,6 +173,7 @@ export function LocationTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Zone</DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">Update zone name</DialogDescription>
           </DialogHeader>
           <Input
             placeholder="Zone name"
@@ -197,12 +200,12 @@ export function LocationTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Zone</DialogTitle>
+            <DialogDescription className="text-sm text-gray-600">
+              Are you sure you want to delete <strong>{deleting?.name}</strong>? This
+              will also remove all racks and shelves within it. This action cannot be
+              undone.
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-gray-600">
-            Are you sure you want to delete <strong>{deleting?.name}</strong>? This
-            will also remove all racks and shelves within it. This action cannot be
-            undone.
-          </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
               Cancel

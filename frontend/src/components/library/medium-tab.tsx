@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   useMediaRecipes,
@@ -17,6 +18,7 @@ import {
 } from '@/hooks/use-media-recipes';
 import type { MediaRecipe } from '@/types';
 import { toast } from 'sonner';
+import { formatHormones, hormonesToJson } from '@/lib/format';
 
 const emptyForm = { name: '', baseType: '', phLevel: '5.8', agar: '0', hormones: '' };
 
@@ -42,7 +44,7 @@ export function MediumTab() {
         baseType: form.baseType.trim(),
         phLevel: parseFloat(form.phLevel) || 5.8,
         agar: parseFloat(form.agar) || 0,
-        hormones: form.hormones.trim(),
+        hormones: hormonesToJson(form.hormones.trim()),
       },
       {
         onSuccess: () => {
@@ -62,7 +64,7 @@ export function MediumTab() {
       baseType: recipe.baseType,
       phLevel: String(recipe.phLevel),
       agar: String(recipe.agar),
-      hormones: recipe.hormones ?? '',
+      hormones: formatHormones(recipe.hormones),
     });
   };
 
@@ -76,7 +78,7 @@ export function MediumTab() {
           baseType: editForm.baseType.trim(),
           phLevel: parseFloat(editForm.phLevel) || 5.8,
           agar: parseFloat(editForm.agar) || 0,
-          hormones: editForm.hormones.trim(),
+          hormones: hormonesToJson(editForm.hormones.trim()),
         },
       },
       {
@@ -191,6 +193,7 @@ export function MediumTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Medium Template</DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">Enter details to create a new medium template</DialogDescription>
           </DialogHeader>
           {formFields(form, setForm)}
           <DialogFooter>
@@ -212,6 +215,7 @@ export function MediumTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Medium Template</DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">Update medium template information</DialogDescription>
           </DialogHeader>
           {formFields(editForm, setEditForm)}
           <DialogFooter>
@@ -237,11 +241,11 @@ export function MediumTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Medium Template</DialogTitle>
+            <DialogDescription className="text-sm text-gray-600">
+              Are you sure you want to delete <strong>{deleting?.name}</strong>? This
+              action cannot be undone.
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-gray-600">
-            Are you sure you want to delete <strong>{deleting?.name}</strong>? This
-            action cannot be undone.
-          </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
               Cancel

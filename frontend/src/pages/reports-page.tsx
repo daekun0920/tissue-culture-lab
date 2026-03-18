@@ -1,12 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, ScatterChart, Scatter,
-  type PieLabelRenderProps,
 } from 'recharts';
 import { Leaf, Clock, Package, AlertTriangle } from 'lucide-react';
 import { StatCard } from '@/components/reports/stat-card';
 import { useEnhancedDashboard } from '@/hooks/use-reports';
+import { formatEnum } from '@/lib/format';
 
 const DONUT_COLORS: Record<string, string> = {
   HAS_CULTURE: '#22c55e',
@@ -85,12 +85,7 @@ export default function ReportsPage() {
                     cy="50%"
                     innerRadius={50}
                     outerRadius={80}
-                    label={(props: PieLabelRenderProps) => {
-                      const name = String(props.name ?? '').replace('_', ' ');
-                      const pct = Math.round((props.percent ?? 0) * 100);
-                      return `${name}: ${pct}%`;
-                    }}
-                    labelLine
+                    label={false}
                   >
                     {data.statusDistribution.map((entry) => (
                       <Cell
@@ -100,6 +95,9 @@ export default function ReportsPage() {
                     ))}
                   </Pie>
                   <Tooltip />
+                  <Legend
+                    formatter={(value: string) => formatEnum(value)}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -117,8 +115,8 @@ export default function ReportsPage() {
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={data.weeklyActivity}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
-                <YAxis />
+                <XAxis dataKey="day" interval={0} tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} />
                 <Tooltip />
                 <Bar dataKey="processed" fill="#4F46E5" name="Processed" />
                 <Bar dataKey="discarded" fill="#ef4444" name="Discarded" />
@@ -145,7 +143,7 @@ export default function ReportsPage() {
                       return `${d.getMonth() + 1}/${d.getDate()}`;
                     }}
                   />
-                  <YAxis dataKey="dueCount" />
+                  <YAxis dataKey="dueCount" allowDecimals={false} />
                   <Tooltip
                     formatter={(value: unknown) => [Number(value), 'Due containers']}
                     labelFormatter={(label: unknown) =>
