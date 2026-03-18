@@ -2,6 +2,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { LocationTab } from '@/components/library/location-tab';
 import { MediumTab } from '@/components/library/medium-tab';
 import { CultureTab } from '@/components/library/culture-tab';
+import { EmployeeTab } from '@/components/library/employee-tab';
+import { ContainerTypeTab } from '@/components/library/container-type-tab';
 
 export default function LibraryPage() {
   return (
@@ -9,10 +11,12 @@ export default function LibraryPage() {
       <h1 className="text-2xl font-bold text-gray-900">Library</h1>
 
       <Tabs defaultValue="locations" className="w-full">
-        <TabsList className="w-full grid grid-cols-3">
+        <TabsList className="w-full grid grid-cols-5">
           <TabsTrigger value="locations">Locations</TabsTrigger>
           <TabsTrigger value="medium">Medium</TabsTrigger>
           <TabsTrigger value="culture">Culture</TabsTrigger>
+          <TabsTrigger value="employees">Employees</TabsTrigger>
+          <TabsTrigger value="containerTypes">Container Types</TabsTrigger>
         </TabsList>
 
         <TabsContent value="locations">
@@ -23,6 +27,12 @@ export default function LibraryPage() {
         </TabsContent>
         <TabsContent value="culture">
           <CultureTab />
+        </TabsContent>
+        <TabsContent value="employees">
+          <EmployeeTab />
+        </TabsContent>
+        <TabsContent value="containerTypes">
+          <ContainerTypeTab />
         </TabsContent>
       </Tabs>
     </div>

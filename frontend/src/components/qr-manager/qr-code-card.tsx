@@ -1,8 +1,9 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { QRCodeCanvas } from 'qrcode.react';
 import type { Container } from '@/types';
 
 interface QrCodeCardProps {
@@ -19,30 +20,37 @@ const statusColors: Record<string, string> = {
 export function QrCodeCard({ container }: QrCodeCardProps) {
   const navigate = useNavigate();
 
+  const qrRef = useRef<HTMLDivElement>(null);
+
   const handleDownload = useCallback(() => {
-    // Create a simple SVG-based QR code download
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('width', '200');
-    svg.setAttribute('height', '240');
-    svg.innerHTML = `
-      <rect width="200" height="240" fill="white"/>
-      <text x="100" y="120" text-anchor="middle" font-size="48" font-family="monospace" fill="black">${container.qrCode}</text>
-      <text x="100" y="220" text-anchor="middle" font-size="14" font-family="sans-serif" fill="#666">QR: ${container.qrCode}</text>
-    `;
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement('canvas');
-    canvas.width = 200;
-    canvas.height = 240;
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    img.onload = () => {
-      ctx?.drawImage(img, 0, 0);
-      const a = document.createElement('a');
-      a.download = `qr-${container.qrCode}.png`;
-      a.href = canvas.toDataURL('image/png');
-      a.click();
-    };
-    img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+    const canvas = qrRef.current?.querySelector('canvas');
+    if (!canvas) return;
+
+    const padding = 20;
+    const labelHeight = 30;
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = canvas.width + padding * 2;
+    outCanvas.height = canvas.height + padding * 2 + labelHeight;
+    const ctx = outCanvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, outCanvas.width, outCanvas.height);
+    ctx.drawImage(canvas, padding, padding);
+
+    ctx.fillStyle = '#666666';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(
+      `QR: ${container.qrCode}`,
+      outCanvas.width / 2,
+      outCanvas.height - 10,
+    );
+
+    const a = document.createElement('a');
+    a.download = `qr-${container.qrCode}.png`;
+    a.href = outCanvas.toDataURL('image/png');
+    a.click();
   }, [container.qrCode]);
 
   const location = container.shelf
@@ -79,6 +87,9 @@ export function QrCodeCard({ container }: QrCodeCardProps) {
         {location && (
           <p className="text-xs text-indigo-600 mt-0.5">{location}</p>
         )}
+      </div>
+      <div ref={qrRef} style={{ position: 'absolute', left: '-9999px' }}>
+        <QRCodeCanvas value={String(container.qrCode)} size={200} level="M" />
       </div>
       <div className="flex items-center gap-1 shrink-0">
         <Button
