@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlaskConical, Plus } from 'lucide-react';
+import { FlaskConical, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -9,14 +9,30 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { useMediaRecipes, useCreateMediaRecipe } from '@/hooks/use-media-recipes';
+import {
+  useMediaRecipes,
+  useCreateMediaRecipe,
+  useUpdateMediaRecipe,
+  useDeleteMediaRecipe,
+} from '@/hooks/use-media-recipes';
+import type { MediaRecipe } from '@/types';
 import { toast } from 'sonner';
+
+const emptyForm = { name: '', baseType: '', phLevel: '5.8', agar: '0', hormones: '' };
 
 export function MediumTab() {
   const { data: recipes, isLoading } = useMediaRecipes();
   const createRecipe = useCreateMediaRecipe();
+  const updateRecipe = useUpdateMediaRecipe();
+  const deleteRecipe = useDeleteMediaRecipe();
+
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ name: '', baseType: '', phLevel: '5.8', agar: '0', hormones: '' });
+  const [form, setForm] = useState(emptyForm);
+
+  const [editing, setEditing] = useState<MediaRecipe | null>(null);
+  const [editForm, setEditForm] = useState(emptyForm);
+
+  const [deleting, setDeleting] = useState<MediaRecipe | null>(null);
 
   const handleCreate = () => {
     if (!form.name.trim() || !form.baseType.trim()) return;
@@ -32,16 +48,100 @@ export function MediumTab() {
         onSuccess: () => {
           toast.success('Medium template created');
           setShowAdd(false);
-          setForm({ name: '', baseType: '', phLevel: '5.8', agar: '0', hormones: '' });
+          setForm(emptyForm);
         },
         onError: (err) => toast.error(err.message),
       },
     );
   };
 
+  const openEdit = (recipe: MediaRecipe) => {
+    setEditing(recipe);
+    setEditForm({
+      name: recipe.name,
+      baseType: recipe.baseType,
+      phLevel: String(recipe.phLevel),
+      agar: String(recipe.agar),
+      hormones: recipe.hormones ?? '',
+    });
+  };
+
+  const handleUpdate = () => {
+    if (!editing || !editForm.name.trim() || !editForm.baseType.trim()) return;
+    updateRecipe.mutate(
+      {
+        id: editing.id,
+        data: {
+          name: editForm.name.trim(),
+          baseType: editForm.baseType.trim(),
+          phLevel: parseFloat(editForm.phLevel) || 5.8,
+          agar: parseFloat(editForm.agar) || 0,
+          hormones: editForm.hormones.trim(),
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success('Medium template updated');
+          setEditing(null);
+        },
+        onError: (err) => toast.error(err.message),
+      },
+    );
+  };
+
+  const handleDelete = () => {
+    if (!deleting) return;
+    deleteRecipe.mutate(deleting.id, {
+      onSuccess: () => {
+        toast.success('Medium template deleted');
+        setDeleting(null);
+      },
+      onError: (err) => toast.error(err.message),
+    });
+  };
+
   if (isLoading) {
     return <div className="py-8 text-center text-gray-400">Loading...</div>;
   }
+
+  const formFields = (
+    f: typeof form,
+    setF: React.Dispatch<React.SetStateAction<typeof form>>,
+  ) => (
+    <div className="space-y-3">
+      <Input
+        placeholder="Name"
+        value={f.name}
+        onChange={(e) => setF({ ...f, name: e.target.value })}
+      />
+      <Input
+        placeholder="Base type (e.g. MS, WPM)"
+        value={f.baseType}
+        onChange={(e) => setF({ ...f, baseType: e.target.value })}
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <Input
+          placeholder="pH level"
+          type="number"
+          step="0.1"
+          value={f.phLevel}
+          onChange={(e) => setF({ ...f, phLevel: e.target.value })}
+        />
+        <Input
+          placeholder="Agar (g/L)"
+          type="number"
+          step="0.1"
+          value={f.agar}
+          onChange={(e) => setF({ ...f, agar: e.target.value })}
+        />
+      </div>
+      <Input
+        placeholder="Hormones"
+        value={f.hormones}
+        onChange={(e) => setF({ ...f, hormones: e.target.value })}
+      />
+    </div>
+  );
 
   return (
     <div className="space-y-3">
@@ -57,8 +157,17 @@ export function MediumTab() {
             <p className="font-medium text-gray-900">{recipe.name}</p>
             <p className="text-sm text-gray-500">
               {recipe.baseType} &middot; pH {recipe.phLevel} &middot;{' '}
-              {recipe._count?.batches ?? 0} {(recipe._count?.batches ?? 0) === 1 ? 'batch' : 'batches'}
+              {recipe._count?.batches ?? 0}{' '}
+              {(recipe._count?.batches ?? 0) === 1 ? 'batch' : 'batches'}
             </p>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => openEdit(recipe)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setDeleting(recipe)}>
+              <Trash2 className="h-4 w-4 text-red-500" />
+            </Button>
           </div>
         </div>
       ))}
@@ -77,44 +186,13 @@ export function MediumTab() {
         Add Medium Template
       </button>
 
+      {/* Create dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Medium Template</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <Input
-              placeholder="Name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <Input
-              placeholder="Base type (e.g. MS, WPM)"
-              value={form.baseType}
-              onChange={(e) => setForm({ ...form, baseType: e.target.value })}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                placeholder="pH level"
-                type="number"
-                step="0.1"
-                value={form.phLevel}
-                onChange={(e) => setForm({ ...form, phLevel: e.target.value })}
-              />
-              <Input
-                placeholder="Agar (g/L)"
-                type="number"
-                step="0.1"
-                value={form.agar}
-                onChange={(e) => setForm({ ...form, agar: e.target.value })}
-              />
-            </div>
-            <Input
-              placeholder="Hormones"
-              value={form.hormones}
-              onChange={(e) => setForm({ ...form, hormones: e.target.value })}
-            />
-          </div>
+          {formFields(form, setForm)}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)}>
               Cancel
@@ -124,6 +202,56 @@ export function MediumTab() {
               disabled={!form.name.trim() || !form.baseType.trim()}
             >
               Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Medium Template</DialogTitle>
+          </DialogHeader>
+          {formFields(editForm, setEditForm)}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdate}
+              disabled={
+                !editForm.name.trim() ||
+                !editForm.baseType.trim() ||
+                updateRecipe.isPending
+              }
+            >
+              {updateRecipe.isPending ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <Dialog open={!!deleting} onOpenChange={(open) => !open && setDeleting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Medium Template</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Are you sure you want to delete <strong>{deleting?.name}</strong>? This
+            action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleting(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteRecipe.isPending}
+            >
+              {deleteRecipe.isPending ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>

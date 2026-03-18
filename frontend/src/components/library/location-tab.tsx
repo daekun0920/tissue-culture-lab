@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, ChevronRight, Plus } from 'lucide-react';
+import { MapPin, ChevronRight, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -10,16 +10,29 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { useZones, useCreateZone, useDeleteZone } from '@/hooks/use-locations';
+import {
+  useZones,
+  useCreateZone,
+  useUpdateZone,
+  useDeleteZone,
+} from '@/hooks/use-locations';
+import type { Zone } from '@/types';
 import { toast } from 'sonner';
 
 export function LocationTab() {
   const navigate = useNavigate();
   const { data: zones, isLoading } = useZones();
   const createZone = useCreateZone();
+  const updateZone = useUpdateZone();
   const deleteZone = useDeleteZone();
+
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
+
+  const [editing, setEditing] = useState<Zone | null>(null);
+  const [editName, setEditName] = useState('');
+
+  const [deleting, setDeleting] = useState<Zone | null>(null);
 
   const handleCreate = () => {
     if (!newName.trim()) return;
@@ -34,6 +47,42 @@ export function LocationTab() {
         onError: (err) => toast.error(err.message),
       },
     );
+  };
+
+  const openEdit = (e: React.MouseEvent, zone: Zone) => {
+    e.stopPropagation();
+    setEditing(zone);
+    setEditName(zone.name);
+  };
+
+  const handleUpdate = () => {
+    if (!editing || !editName.trim()) return;
+    updateZone.mutate(
+      { id: editing.id, data: { name: editName.trim() } },
+      {
+        onSuccess: () => {
+          toast.success('Zone updated');
+          setEditing(null);
+        },
+        onError: (err) => toast.error(err.message),
+      },
+    );
+  };
+
+  const openDelete = (e: React.MouseEvent, zone: Zone) => {
+    e.stopPropagation();
+    setDeleting(zone);
+  };
+
+  const handleDelete = () => {
+    if (!deleting) return;
+    deleteZone.mutate(deleting.id, {
+      onSuccess: () => {
+        toast.success('Zone deleted');
+        setDeleting(null);
+      },
+      onError: (err) => toast.error(err.message),
+    });
   };
 
   if (isLoading) {
@@ -54,11 +103,29 @@ export function LocationTab() {
           <div className="flex-1 min-w-0">
             <p className="font-medium text-gray-900">{zone.name}</p>
             <p className="text-sm text-gray-500">
-              {zone._count?.racks ?? 0} {(zone._count?.racks ?? 0) === 1 ? 'rack' : 'racks'} &middot;{' '}
-              {zone._count?.containers ?? 0} {(zone._count?.containers ?? 0) === 1 ? 'container' : 'containers'}
+              {zone._count?.racks ?? 0}{' '}
+              {(zone._count?.racks ?? 0) === 1 ? 'rack' : 'racks'} &middot;{' '}
+              {zone._count?.containers ?? 0}{' '}
+              {(zone._count?.containers ?? 0) === 1 ? 'container' : 'containers'}
             </p>
           </div>
-          <ChevronRight className="h-5 w-5 text-gray-400 shrink-0" />
+          <div className="flex items-center gap-1 shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => openEdit(e, zone)}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => openDelete(e, zone)}
+            >
+              <Trash2 className="h-4 w-4 text-red-500" />
+            </Button>
+            <ChevronRight className="h-5 w-5 text-gray-400" />
+          </div>
         </button>
       ))}
 
@@ -76,6 +143,7 @@ export function LocationTab() {
         Add New Zone
       </button>
 
+      {/* Create dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent>
           <DialogHeader>
@@ -93,6 +161,58 @@ export function LocationTab() {
             </Button>
             <Button onClick={handleCreate} disabled={!newName.trim()}>
               Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Zone</DialogTitle>
+          </DialogHeader>
+          <Input
+            placeholder="Zone name"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleUpdate()}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdate}
+              disabled={!editName.trim() || updateZone.isPending}
+            >
+              {updateZone.isPending ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <Dialog open={!!deleting} onOpenChange={(open) => !open && setDeleting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Zone</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Are you sure you want to delete <strong>{deleting?.name}</strong>? This
+            will also remove all racks and shelves within it. This action cannot be
+            undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleting(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteZone.isPending}
+            >
+              {deleteZone.isPending ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>

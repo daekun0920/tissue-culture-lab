@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Leaf, Plus } from 'lucide-react';
+import { Leaf, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -9,20 +9,36 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { useCultureTypes, useCreateCultureType } from '@/hooks/use-culture-types';
+import {
+  useCultureTypes,
+  useCreateCultureType,
+  useUpdateCultureType,
+  useDeleteCultureType,
+} from '@/hooks/use-culture-types';
+import type { CultureType } from '@/types';
 import { toast } from 'sonner';
+
+const emptyForm = {
+  name: '',
+  species: '',
+  clone: '',
+  origin: '',
+  defaultSubcultureInterval: '14',
+};
 
 export function CultureTab() {
   const { data: cultures, isLoading } = useCultureTypes();
   const createCulture = useCreateCultureType();
+  const updateCulture = useUpdateCultureType();
+  const deleteCulture = useDeleteCultureType();
+
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({
-    name: '',
-    species: '',
-    clone: '',
-    origin: '',
-    defaultSubcultureInterval: '14',
-  });
+  const [form, setForm] = useState(emptyForm);
+
+  const [editing, setEditing] = useState<CultureType | null>(null);
+  const [editForm, setEditForm] = useState(emptyForm);
+
+  const [deleting, setDeleting] = useState<CultureType | null>(null);
 
   const handleCreate = () => {
     if (!form.name.trim()) return;
@@ -38,16 +54,100 @@ export function CultureTab() {
         onSuccess: () => {
           toast.success('Culture template created');
           setShowAdd(false);
-          setForm({ name: '', species: '', clone: '', origin: '', defaultSubcultureInterval: '14' });
+          setForm(emptyForm);
         },
         onError: (err) => toast.error(err.message),
       },
     );
   };
 
+  const openEdit = (culture: CultureType) => {
+    setEditing(culture);
+    setEditForm({
+      name: culture.name,
+      species: culture.species ?? '',
+      clone: culture.clone ?? '',
+      origin: culture.origin ?? '',
+      defaultSubcultureInterval: String(culture.defaultSubcultureInterval),
+    });
+  };
+
+  const handleUpdate = () => {
+    if (!editing || !editForm.name.trim()) return;
+    updateCulture.mutate(
+      {
+        id: editing.id,
+        data: {
+          name: editForm.name.trim(),
+          species: editForm.species.trim() || null,
+          clone: editForm.clone.trim() || null,
+          origin: editForm.origin.trim() || null,
+          defaultSubcultureInterval:
+            parseInt(editForm.defaultSubcultureInterval) || 14,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success('Culture template updated');
+          setEditing(null);
+        },
+        onError: (err) => toast.error(err.message),
+      },
+    );
+  };
+
+  const handleDelete = () => {
+    if (!deleting) return;
+    deleteCulture.mutate(deleting.id, {
+      onSuccess: () => {
+        toast.success('Culture template deleted');
+        setDeleting(null);
+      },
+      onError: (err) => toast.error(err.message),
+    });
+  };
+
   if (isLoading) {
     return <div className="py-8 text-center text-gray-400">Loading...</div>;
   }
+
+  const formFields = (
+    f: typeof form,
+    setF: React.Dispatch<React.SetStateAction<typeof form>>,
+  ) => (
+    <div className="space-y-3">
+      <Input
+        placeholder="Name"
+        value={f.name}
+        onChange={(e) => setF({ ...f, name: e.target.value })}
+      />
+      <Input
+        placeholder="Species (optional)"
+        value={f.species}
+        onChange={(e) => setF({ ...f, species: e.target.value })}
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <Input
+          placeholder="Clone (optional)"
+          value={f.clone}
+          onChange={(e) => setF({ ...f, clone: e.target.value })}
+        />
+        <Input
+          placeholder="Origin (optional)"
+          value={f.origin}
+          onChange={(e) => setF({ ...f, origin: e.target.value })}
+        />
+      </div>
+      <Input
+        placeholder="Subculture interval (days)"
+        type="number"
+        value={f.defaultSubcultureInterval}
+        onChange={(e) =>
+          setF({ ...f, defaultSubcultureInterval: e.target.value })
+        }
+      />
+    </div>
+  );
 
   return (
     <div className="space-y-3">
@@ -64,8 +164,17 @@ export function CultureTab() {
             <p className="text-sm text-gray-500">
               {culture.species && <span className="italic">{culture.species}</span>}
               {culture.species && ' \u00b7 '}
-              {culture._count?.containers ?? 0} {(culture._count?.containers ?? 0) === 1 ? 'container' : 'containers'}
+              {culture._count?.containers ?? 0}{' '}
+              {(culture._count?.containers ?? 0) === 1 ? 'container' : 'containers'}
             </p>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => openEdit(culture)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setDeleting(culture)}>
+              <Trash2 className="h-4 w-4 text-red-500" />
+            </Button>
           </div>
         </div>
       ))}
@@ -84,49 +193,65 @@ export function CultureTab() {
         Add Culture Template
       </button>
 
+      {/* Create dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Culture Template</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <Input
-              placeholder="Name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <Input
-              placeholder="Species (optional)"
-              value={form.species}
-              onChange={(e) => setForm({ ...form, species: e.target.value })}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                placeholder="Clone (optional)"
-                value={form.clone}
-                onChange={(e) => setForm({ ...form, clone: e.target.value })}
-              />
-              <Input
-                placeholder="Origin (optional)"
-                value={form.origin}
-                onChange={(e) => setForm({ ...form, origin: e.target.value })}
-              />
-            </div>
-            <Input
-              placeholder="Subculture interval (days)"
-              type="number"
-              value={form.defaultSubcultureInterval}
-              onChange={(e) =>
-                setForm({ ...form, defaultSubcultureInterval: e.target.value })
-              }
-            />
-          </div>
+          {formFields(form, setForm)}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)}>
               Cancel
             </Button>
             <Button onClick={handleCreate} disabled={!form.name.trim()}>
               Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Culture Template</DialogTitle>
+          </DialogHeader>
+          {formFields(editForm, setEditForm)}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdate}
+              disabled={!editForm.name.trim() || updateCulture.isPending}
+            >
+              {updateCulture.isPending ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <Dialog open={!!deleting} onOpenChange={(open) => !open && setDeleting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Culture Template</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Are you sure you want to delete <strong>{deleting?.name}</strong>? This
+            action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleting(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteCulture.isPending}
+            >
+              {deleteCulture.isPending ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>

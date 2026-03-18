@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Plus } from 'lucide-react';
+import { Box, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -13,20 +13,27 @@ import {
 import {
   useContainerTypes,
   useCreateContainerType,
+  useUpdateContainerType,
+  useDeleteContainerType,
 } from '@/hooks/use-container-types';
+import type { ContainerType } from '@/types';
 import { toast } from 'sonner';
+
+const emptyForm = { name: '', size: '', material: '', isVented: false, isReusable: false };
 
 export function ContainerTypeTab() {
   const { data: types, isLoading } = useContainerTypes();
   const createType = useCreateContainerType();
+  const updateType = useUpdateContainerType();
+  const deleteType = useDeleteContainerType();
+
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({
-    name: '',
-    size: '',
-    material: '',
-    isVented: false,
-    isReusable: false,
-  });
+  const [form, setForm] = useState(emptyForm);
+
+  const [editing, setEditing] = useState<ContainerType | null>(null);
+  const [editForm, setEditForm] = useState(emptyForm);
+
+  const [deleting, setDeleting] = useState<ContainerType | null>(null);
 
   const handleCreate = () => {
     if (!form.name.trim()) return;
@@ -42,16 +49,106 @@ export function ContainerTypeTab() {
         onSuccess: () => {
           toast.success('Container type created');
           setShowAdd(false);
-          setForm({ name: '', size: '', material: '', isVented: false, isReusable: false });
+          setForm(emptyForm);
         },
         onError: (err) => toast.error(err.message),
       },
     );
   };
 
+  const openEdit = (ct: ContainerType) => {
+    setEditing(ct);
+    setEditForm({
+      name: ct.name,
+      size: ct.size ?? '',
+      material: ct.material ?? '',
+      isVented: ct.isVented,
+      isReusable: ct.isReusable,
+    });
+  };
+
+  const handleUpdate = () => {
+    if (!editing || !editForm.name.trim()) return;
+    updateType.mutate(
+      {
+        id: editing.id,
+        data: {
+          name: editForm.name.trim(),
+          size: editForm.size.trim() || null,
+          material: editForm.material.trim() || null,
+          isVented: editForm.isVented,
+          isReusable: editForm.isReusable,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success('Container type updated');
+          setEditing(null);
+        },
+        onError: (err) => toast.error(err.message),
+      },
+    );
+  };
+
+  const handleDelete = () => {
+    if (!deleting) return;
+    deleteType.mutate(deleting.id, {
+      onSuccess: () => {
+        toast.success('Container type deleted');
+        setDeleting(null);
+      },
+      onError: (err) => toast.error(err.message),
+    });
+  };
+
   if (isLoading) {
     return <div className="py-8 text-center text-gray-400">Loading...</div>;
   }
+
+  const formFields = (
+    f: typeof form,
+    setF: React.Dispatch<React.SetStateAction<typeof form>>,
+  ) => (
+    <div className="space-y-3">
+      <Input
+        placeholder="Name"
+        value={f.name}
+        onChange={(e) => setF({ ...f, name: e.target.value })}
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <Input
+          placeholder="Size (optional)"
+          value={f.size}
+          onChange={(e) => setF({ ...f, size: e.target.value })}
+        />
+        <Input
+          placeholder="Material (optional)"
+          value={f.material}
+          onChange={(e) => setF({ ...f, material: e.target.value })}
+        />
+      </div>
+      <div className="flex items-center gap-6">
+        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={f.isVented}
+            onChange={(e) => setF({ ...f, isVented: e.target.checked })}
+            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          Vented
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={f.isReusable}
+            onChange={(e) => setF({ ...f, isReusable: e.target.checked })}
+            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          Reusable
+        </label>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-3">
@@ -80,6 +177,14 @@ export function ContainerTypeTab() {
               {(ct._count?.containers ?? 0) === 1 ? 'container' : 'containers'}
             </p>
           </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => openEdit(ct)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setDeleting(ct)}>
+              <Trash2 className="h-4 w-4 text-red-500" />
+            </Button>
+          </div>
         </div>
       ))}
 
@@ -97,54 +202,13 @@ export function ContainerTypeTab() {
         Add Container Type
       </button>
 
+      {/* Create dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Container Type</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <Input
-              placeholder="Name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                placeholder="Size (optional)"
-                value={form.size}
-                onChange={(e) => setForm({ ...form, size: e.target.value })}
-              />
-              <Input
-                placeholder="Material (optional)"
-                value={form.material}
-                onChange={(e) => setForm({ ...form, material: e.target.value })}
-              />
-            </div>
-            <div className="flex items-center gap-6">
-              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.isVented}
-                  onChange={(e) =>
-                    setForm({ ...form, isVented: e.target.checked })
-                  }
-                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                Vented
-              </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.isReusable}
-                  onChange={(e) =>
-                    setForm({ ...form, isReusable: e.target.checked })
-                  }
-                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                Reusable
-              </label>
-            </div>
-          </div>
+          {formFields(form, setForm)}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)}>
               Cancel
@@ -154,6 +218,52 @@ export function ContainerTypeTab() {
               disabled={!form.name.trim() || createType.isPending}
             >
               {createType.isPending ? 'Creating...' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Container Type</DialogTitle>
+          </DialogHeader>
+          {formFields(editForm, setEditForm)}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdate}
+              disabled={!editForm.name.trim() || updateType.isPending}
+            >
+              {updateType.isPending ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <Dialog open={!!deleting} onOpenChange={(open) => !open && setDeleting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Container Type</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Are you sure you want to delete <strong>{deleting?.name}</strong>? This
+            action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleting(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteType.isPending}
+            >
+              {deleteType.isPending ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>
