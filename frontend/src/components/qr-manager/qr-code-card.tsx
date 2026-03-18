@@ -8,6 +8,9 @@ import type { Container } from '@/types';
 
 interface QrCodeCardProps {
   container: Container;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggle?: (qrCode: string) => void;
 }
 
 const statusColors: Record<string, string> = {
@@ -17,7 +20,7 @@ const statusColors: Record<string, string> = {
   DISCARDED: 'bg-red-100 text-red-700',
 };
 
-export function QrCodeCard({ container }: QrCodeCardProps) {
+export function QrCodeCard({ container, selectable, selected, onToggle }: QrCodeCardProps) {
   const navigate = useNavigate();
 
   const qrRef = useRef<HTMLDivElement>(null);
@@ -64,7 +67,19 @@ export function QrCodeCard({ container }: QrCodeCardProps) {
     : null;
 
   return (
-    <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-4">
+    <div
+      className={`flex items-center gap-3 bg-white border rounded-xl p-4 ${
+        selected ? 'border-indigo-400 bg-indigo-50/30' : 'border-gray-200'
+      }`}
+    >
+      {selectable && (
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={() => onToggle?.(container.qrCode)}
+          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 shrink-0 cursor-pointer"
+        />
+      )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <code className="text-sm font-mono font-medium text-gray-900">
