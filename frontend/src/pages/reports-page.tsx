@@ -162,6 +162,31 @@ export default function ReportsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Attention Required */}
+        {data.alerts.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                Attention Required
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2">
+                {data.alerts.map((alert, i) => (
+                  <li
+                    key={i}
+                    className="flex items-start gap-2 text-sm text-gray-700"
+                  >
+                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                    {alert}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

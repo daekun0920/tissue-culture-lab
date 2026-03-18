@@ -37,17 +37,19 @@ export default function PickListPage() {
       {/* Sections */}
       <div className="space-y-4">
         {/* Expired */}
-        {(data?.expired?.length ?? 0) > 0 && (
-          <PickListSection
-            title="Expired"
-            count={data!.expired.length}
-            borderColor="border-red-500"
-          >
-            {data!.expired.map((c) => (
+        <PickListSection
+          title="Expired"
+          count={data?.expired?.length ?? 0}
+          borderColor="border-red-500"
+        >
+          {data?.expired?.length ? (
+            data.expired.map((c) => (
               <PickListItem key={c.qrCode} container={c} variant="expired" />
-            ))}
-          </PickListSection>
-        )}
+            ))
+          ) : (
+            <p className="text-sm text-gray-400 py-2">No expired items</p>
+          )}
+        </PickListSection>
 
         {/* Due Soon */}
         <PickListSection

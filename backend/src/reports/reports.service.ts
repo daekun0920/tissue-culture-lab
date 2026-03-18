@@ -196,6 +196,7 @@ export class ReportsService {
       prevWeekDiscards,
       thisWeekLogs,
       upcomingDue,
+      overdueCount,
     ] = await Promise.all([
       // Active cultures now
       this.prisma.container.count({
@@ -263,6 +264,13 @@ export class ReportsService {
         },
         select: { dueSubcultureDate: true },
       }),
+      // Overdue cultures (past due date, still active)
+      this.prisma.container.count({
+        where: {
+          status: ContainerStatus.HAS_CULTURE,
+          dueSubcultureDate: { lt: now },
+        },
+      }),
     ]);
 
     // Calculate percentage changes
@@ -329,6 +337,25 @@ export class ReportsService {
           ) / 100
         : 0;
 
+    // Alerts / Attention Required
+    const todayStr = now.toISOString().split('T')[0];
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+    const dueToday = workloadMap.get(todayStr) ?? 0;
+    const dueTomorrow = workloadMap.get(tomorrowStr) ?? 0;
+
+    const alerts: string[] = [];
+    if (dueToday > 0)
+      alerts.push(`${dueToday} culture${dueToday === 1 ? ' is' : 's are'} due today`);
+    if (dueTomorrow > 0)
+      alerts.push(`${dueTomorrow} culture${dueTomorrow === 1 ? ' is' : 's are'} due tomorrow`);
+    if (overdueCount > 0)
+      alerts.push(`${overdueCount} culture${overdueCount === 1 ? ' is' : 's are'} overdue`);
+    if (discardRate > 10)
+      alerts.push(`Discard rate is high at ${discardRate}%`);
+
     return {
       activeCultures: {
         count: activeCultures,
@@ -352,6 +379,7 @@ export class ReportsService {
       statusDistribution,
       weeklyActivity,
       upcomingWorkload,
+      alerts,
     };
   }
 }

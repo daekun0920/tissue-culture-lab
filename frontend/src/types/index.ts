@@ -246,6 +246,7 @@ export interface EnhancedDashboard {
   statusDistribution: { status: string; count: number; percentage: number }[];
   weeklyActivity: { day: string; processed: number; discarded: number }[];
   upcomingWorkload: { date: string; dueCount: number }[];
+  alerts: string[];
 }
 
 // QR Manager
