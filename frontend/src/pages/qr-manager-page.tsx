@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef } from 'react';
-import { QrCode, Plus, Download, Printer } from 'lucide-react';
+import { useState, useCallback, useRef, type ChangeEvent } from 'react';
+import { QrCode, Plus, Download, Printer, Upload } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
@@ -46,6 +47,13 @@ export default function QrManagerPage() {
   const { data: containerTypes } = useContainerTypes();
   const registerContainers = useRegisterContainers();
   const qc = useQueryClient();
+
+  // Mass migration dialog state
+  const [massOpen, setMassOpen] = useState(false);
+  const [massInput, setMassInput] = useState('');
+  const [massContainerTypeId, setMassContainerTypeId] = useState('');
+  const [massNotes, setMassNotes] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const bulkRef = useRef<HTMLDivElement>(null);
@@ -103,6 +111,79 @@ export default function QrManagerPage() {
         },
         onError: (err) => {
           toast.error(err instanceof Error ? err.message : 'Registration failed');
+        },
+      },
+    );
+  };
+
+  /* ---- Mass migration helpers ---- */
+
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result;
+      if (typeof text === 'string') {
+        // Support CSV / newline / comma / semicolon separated values.
+        // Strip header row if it looks non-numeric (e.g. "qr_code,name").
+        const lines = text
+          .split(/[\r\n]+/)
+          .map((l) => l.trim())
+          .filter(Boolean);
+
+        const startsWithHeader =
+          lines.length > 0 && /[a-zA-Z_]/.test(lines[0].split(/[,;\t]/)[0]);
+        const dataLines = startsWithHeader ? lines.slice(1) : lines;
+
+        const codes = dataLines
+          .flatMap((line) => line.split(/[,;\t]/))
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+        setMassInput((prev) =>
+          prev ? `${prev}\n${codes.join('\n')}` : codes.join('\n'),
+        );
+      }
+    };
+    reader.readAsText(file);
+    // Reset so the same file can be re-selected
+    e.target.value = '';
+  };
+
+  const parseMassInput = () =>
+    massInput
+      .split(/[\n,;]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+  const handleMassRegister = () => {
+    const qrCodes = parseMassInput();
+    if (qrCodes.length === 0) {
+      toast.error('No QR codes detected – paste codes or upload a file');
+      return;
+    }
+    registerContainers.mutate(
+      {
+        qrCodes,
+        containerTypeId: massContainerTypeId || undefined,
+        notes: massNotes.trim() || undefined,
+      },
+      {
+        onSuccess: (data) => {
+          toast.success(
+            `Mass migration complete: ${data.count} container(s) registered`,
+          );
+          qc.invalidateQueries({ queryKey: queryKeys.qrManager.summary });
+          setMassOpen(false);
+          setMassInput('');
+          setMassContainerTypeId('');
+          setMassNotes('');
+        },
+        onError: (err) => {
+          toast.error(
+            err instanceof Error ? err.message : 'Mass registration failed',
+          );
         },
       },
     );
@@ -248,10 +329,16 @@ export default function QrManagerPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">QR Manager</h1>
-        <Button onClick={() => setGenerateOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" />
-          Register QR
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setMassOpen(true)}>
+            <Upload className="h-4 w-4 mr-1" />
+            Register QR (Mass)
+          </Button>
+          <Button onClick={() => setGenerateOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            Register QR
+          </Button>
+        </div>
       </div>
 
       {/* QR Preview */}
@@ -317,6 +404,99 @@ export default function QrManagerPage() {
               disabled={!qrCodesInput.trim() || registerContainers.isPending}
             >
               {registerContainers.isPending ? 'Registering...' : 'Register'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mass Migration Dialog */}
+      <Dialog open={massOpen} onOpenChange={setMassOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Mass Migration – Register QR Codes</DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              Upload a CSV / text file or paste a large list of QR codes to
+              register them all at once.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* File upload */}
+            <div className="space-y-1.5">
+              <Label>Upload File (CSV / TXT)</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.txt,.tsv"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-center"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Choose File
+              </Button>
+              <p className="text-xs text-gray-400">
+                Accepts .csv, .txt, or .tsv — one QR code per line or
+                comma / semicolon separated.
+              </p>
+            </div>
+
+            {/* Textarea for pasting / review */}
+            <div className="space-y-1.5">
+              <Label>QR Codes</Label>
+              <Textarea
+                placeholder={'Paste QR codes here (one per line)…\n2001\n2002\n2003'}
+                rows={8}
+                value={massInput}
+                onChange={(e) => setMassInput(e.target.value)}
+              />
+              <p className="text-xs text-gray-400">
+                {parseMassInput().length} QR code(s) detected
+              </p>
+            </div>
+
+            {/* Container type */}
+            <div className="space-y-1.5">
+              <Label>Container Type (optional)</Label>
+              <select
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                value={massContainerTypeId}
+                onChange={(e) => setMassContainerTypeId(e.target.value)}
+              >
+                <option value="">No type specified</option>
+                {containerTypes?.map((ct) => (
+                  <option key={ct.id} value={ct.id}>
+                    {ct.name} {ct.size ? `(${ct.size})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-1.5">
+              <Label>Notes (optional)</Label>
+              <Input
+                placeholder="e.g. Migrated from legacy system"
+                value={massNotes}
+                onChange={(e) => setMassNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMassOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleMassRegister}
+              disabled={parseMassInput().length === 0 || registerContainers.isPending}
+            >
+              {registerContainers.isPending
+                ? 'Registering...'
+                : `Register ${parseMassInput().length} Code(s)`}
             </Button>
           </DialogFooter>
         </DialogContent>
