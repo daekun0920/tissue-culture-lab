@@ -282,33 +282,94 @@ export default function QrManagerPage() {
       return;
     }
 
+    // PLS601 label sheet: 8.5" x 11", 7 cols x 9 rows = 63 labels per sheet,
+    // each label 1" x 1". Margins 0.5" on all sides.
+    // Horizontal gap = (8.5 - 1.0 - 7*1) / 6 ≈ 0.0833"
+    // Vertical gap   = (11  - 1.0 - 9*1) / 8 = 0.125"
+    const LABELS_PER_SHEET = 63;
+    const sheets: typeof images[] = [];
+    for (let i = 0; i < images.length; i += LABELS_PER_SHEET) {
+      sheets.push(images.slice(i, i + LABELS_PER_SHEET));
+    }
+
     const html = `<!DOCTYPE html>
 <html>
 <head>
-  <title>QR Codes</title>
+  <title>QR Codes — PLS601</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: sans-serif; padding: 20px; }
-    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-    .cell { text-align: center; page-break-inside: avoid; break-inside: avoid; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; }
-    .cell img { width: 160px; height: 160px; }
-    .cell p { margin-top: 8px; font-size: 13px; color: #374151; font-weight: 500; }
-    @media print {
-      body { padding: 0; }
-      .grid { gap: 8px; }
-      .cell { border: 1px solid #d1d5db; }
+    html, body { background: #fff; }
+    body { font-family: sans-serif; }
+    @page { size: 8.5in 11in; margin: 0; }
+    .sheet {
+      width: 8.5in;
+      height: 11in;
+      padding: 0.5in 0.5in;
+      page-break-after: always;
+      break-after: page;
+      position: relative;
+    }
+    .sheet:last-child { page-break-after: auto; break-after: auto; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1in);
+      grid-template-rows: repeat(9, 1in);
+      column-gap: 0.0833in;
+      row-gap: 0.125in;
+      width: 7.5in;
+      height: 10in;
+    }
+    .cell {
+      width: 1in;
+      height: 1in;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .cell img {
+      width: 0.82in;
+      height: 0.82in;
+      display: block;
+    }
+    .cell p {
+      font-size: 6pt;
+      line-height: 1;
+      margin-top: 0.02in;
+      color: #000;
+      font-weight: 600;
+      text-align: center;
+      max-width: 0.95in;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    @media screen {
+      body { padding: 20px; background: #e5e7eb; }
+      .sheet { background: #fff; margin: 0 auto 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+      .cell { outline: 1px dashed #d1d5db; }
     }
   </style>
 </head>
 <body>
-  <div class="grid">
-    ${images
-      .map(
-        ({ qr, dataUrl }) =>
-          `<div class="cell"><img src="${dataUrl}" alt="QR ${qr}" /><p>QR: ${qr}</p></div>`,
-      )
-      .join('')}
-  </div>
+  ${sheets
+    .map(
+      (sheet) => `
+    <div class="sheet">
+      <div class="grid">
+        ${sheet
+          .map(
+            ({ qr, dataUrl }) =>
+              `<div class="cell"><img src="${dataUrl}" alt="QR ${qr}" /><p>${qr}</p></div>`,
+          )
+          .join('')}
+      </div>
+    </div>`,
+    )
+    .join('')}
   <script>window.onload = function() { window.print(); }</script>
 </body>
 </html>`;
