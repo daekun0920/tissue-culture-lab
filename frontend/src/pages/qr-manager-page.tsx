@@ -283,9 +283,8 @@ export default function QrManagerPage() {
     }
 
     // PLS601 label sheet: 8.5" x 11", 7 cols x 9 rows = 63 labels per sheet,
-    // each label 1" x 1". Margins 0.5" on all sides.
-    // Horizontal gap = (8.5 - 1.0 - 7*1) / 6 ≈ 0.0833"
-    // Vertical gap   = (11  - 1.0 - 9*1) / 8 = 0.125"
+    // each label 1" x 1", 0.125" pitch gap both axes (1.125" pitch).
+    // Margins: 0.375" left/right, 0.5" top/bottom.
     const LABELS_PER_SHEET = 63;
     const sheets: typeof images[] = [];
     for (let i = 0; i < images.length; i += LABELS_PER_SHEET) {
@@ -304,7 +303,7 @@ export default function QrManagerPage() {
     .sheet {
       width: 8.5in;
       height: 11in;
-      padding: 0.5in 0.5in;
+      padding: 0.5in 0.375in;
       page-break-after: always;
       break-after: page;
       position: relative;
@@ -314,9 +313,9 @@ export default function QrManagerPage() {
       display: grid;
       grid-template-columns: repeat(7, 1in);
       grid-template-rows: repeat(9, 1in);
-      column-gap: 0.0833in;
+      column-gap: 0.125in;
       row-gap: 0.125in;
-      width: 7.5in;
+      width: 7.75in;
       height: 10in;
     }
     .cell {
