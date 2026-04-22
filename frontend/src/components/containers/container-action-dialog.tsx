@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Camera, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -10,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { CameraScanner } from '@/components/scanner/camera-scanner';
 import { useBatchAction } from '@/hooks/use-containers';
 import { useEmployees } from '@/hooks/use-employees';
 import { useMediaBatches } from '@/hooks/use-media-batches';
@@ -81,8 +83,36 @@ export function ContainerActionDialog({
   const [mediaBatchId, setMediaBatchId] = useState('');
   const [cultureTypeId, setCultureTypeId] = useState('');
   const [reason, setReason] = useState('');
-  const [targetQrCodes, setTargetQrCodes] = useState('');
+  const [targetQrs, setTargetQrs] = useState<string[]>([]);
+  const [manualInput, setManualInput] = useState('');
+  const [inputMode, setInputMode] = useState<'scan' | 'manual'>('scan');
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [note, setNote] = useState('');
+
+  const parseManual = (raw: string): string[] =>
+    raw
+      .split(/[\s,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+  const effectiveTargets = inputMode === 'scan' ? targetQrs : parseManual(manualInput);
+
+  const lastScanRef = useRef<{ code: string; time: number }>({ code: '', time: 0 });
+  const addScannedTarget = (code: string) => {
+    const clean = code.trim();
+    if (!clean) return;
+    const now = Date.now();
+    // Scanner fires ~10x/sec while a code is in frame — dedupe same code within 1.5s.
+    if (lastScanRef.current.code === clean && now - lastScanRef.current.time < 1500) {
+      return;
+    }
+    lastScanRef.current = { code: clean, time: now };
+    if (clean === container.qrCode) {
+      toast.info('Source container cannot be a target');
+      return;
+    }
+    setTargetQrs((prev) => (prev.includes(clean) ? prev : [...prev, clean]));
+  };
 
   if (!selectedAction) return null;
 
@@ -96,7 +126,7 @@ export function ContainerActionDialog({
     if (needsMediaBatch && !mediaBatchId) return false;
     if (needsCultureType && !cultureTypeId) return false;
     if (needsReason && !reason) return false;
-    if (needsTargetQrs && !targetQrCodes.trim()) return false;
+    if (needsTargetQrs && effectiveTargets.length === 0) return false;
     return true;
   };
 
@@ -106,10 +136,7 @@ export function ContainerActionDialog({
     if (needsCultureType) payload.cultureTypeId = cultureTypeId;
     if (needsReason) payload.reason = reason;
     if (needsTargetQrs) {
-      payload.targetQrCodes = targetQrCodes
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
+      payload.targetQrCodes = effectiveTargets;
     }
     if (note.trim()) payload.note = note.trim();
 
@@ -141,7 +168,10 @@ export function ContainerActionDialog({
     setMediaBatchId('');
     setCultureTypeId('');
     setReason('');
-    setTargetQrCodes('');
+    setTargetQrs([]);
+    setManualInput('');
+    setInputMode('scan');
+    setCameraOpen(false);
     setNote('');
   };
 
@@ -229,18 +259,73 @@ export function ContainerActionDialog({
             </div>
           )}
 
-          {/* Target QR codes for subculture */}
+          {/* Target QR codes for subculture — scan by default, manual as fallback */}
           {needsTargetQrs && (
-            <div className="space-y-1.5">
-              <Label>Target Container QR Codes *</Label>
-              <Input
-                placeholder="e.g. 1004, 1005, 1006"
-                value={targetQrCodes}
-                onChange={(e) => setTargetQrCodes(e.target.value)}
-              />
-              <p className="text-xs text-gray-400">
-                Comma-separated QR codes of containers with media to receive the culture
-              </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Target Container QR Codes *</Label>
+                <button
+                  type="button"
+                  onClick={() => setInputMode((m) => (m === 'scan' ? 'manual' : 'scan'))}
+                  className="text-xs text-indigo-600 hover:underline"
+                >
+                  {inputMode === 'scan' ? 'Type manually' : 'Scan instead'}
+                </button>
+              </div>
+
+              {inputMode === 'scan' ? (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setCameraOpen(true)}
+                    className="w-full h-11"
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Open Camera Scanner
+                  </Button>
+
+                  {targetQrs.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 rounded-lg border border-gray-200 bg-gray-50 p-2">
+                      {targetQrs.map((qr) => (
+                        <span
+                          key={qr}
+                          className="inline-flex items-center gap-1 rounded border border-gray-200 bg-white px-2 py-1 font-mono text-xs"
+                        >
+                          {qr}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setTargetQrs((prev) => prev.filter((x) => x !== qr))
+                            }
+                            className="text-gray-400 hover:text-red-500"
+                            aria-label={`Remove ${qr}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <p className="text-xs text-gray-400">
+                    {targetQrs.length > 0
+                      ? `${targetQrs.length} container${targetQrs.length === 1 ? '' : 's'} scanned. Keep scanning to add more.`
+                      : 'Scan containers with media to receive the culture'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <Input
+                    placeholder="e.g. 1004, 1005, 1006"
+                    value={manualInput}
+                    onChange={(e) => setManualInput(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-400">
+                    Comma-separated QR codes of containers with media to receive the culture
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -267,6 +352,13 @@ export function ContainerActionDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {cameraOpen && (
+        <CameraScanner
+          onScan={addScannedTarget}
+          onClose={() => setCameraOpen(false)}
+        />
+      )}
     </Dialog>
   );
 }
