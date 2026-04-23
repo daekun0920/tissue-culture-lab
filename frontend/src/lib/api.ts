@@ -248,14 +248,13 @@ export const containerApi = {
   },
 
   batchAction: async (payload: BatchActionPayload) => {
-    const res = await apiFetch<{
+    return apiFetch<{
       results: { qrCode: string; status: string }[];
       errors: { qrCode: string; reason: string }[];
     }>('/containers/batch-action', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    return { success: res.errors.length === 0, count: res.results.length };
   },
 
   getDashboard: async (): Promise<DashboardStats> => {

@@ -148,7 +148,17 @@ export function ContainerActionDialog({
         employeeId,
       },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
+          // Backend returns 200 even for per-container failures; they're in data.errors.
+          // For the single-container dialog qrCodes=[source], so it's all-or-nothing:
+          // a transaction that fails target validation (e.g. EMPTY subculture target)
+          // rolls back and lands the source QR in data.errors with a reason.
+          if (data.errors.length > 0) {
+            const reason = data.errors[0]?.reason ?? 'Action failed';
+            toast.error(`${selectedAction.label} failed: ${reason}`);
+            // Keep the dialog open so the user can correct the inputs and retry.
+            return;
+          }
           toast.success(`${selectedAction.label} completed successfully`);
           qc.invalidateQueries({ queryKey: queryKeys.containers.detail(container.qrCode) });
           qc.invalidateQueries({ queryKey: queryKeys.qrManager.summary });
