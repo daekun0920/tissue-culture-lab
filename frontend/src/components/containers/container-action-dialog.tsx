@@ -176,8 +176,25 @@ export function ContainerActionDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetForm(); }}>
-      <DialogContent className="sm:max-w-md">
+    <>
+      <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetForm(); }}>
+      <DialogContent
+        className="sm:max-w-md"
+        onPointerDownOutside={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest('[data-camera-scanner]')) e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest('[data-camera-scanner]')) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (cameraOpen) {
+            e.preventDefault();
+            setCameraOpen(false);
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{selectedAction.label}</DialogTitle>
           <p className="text-sm text-gray-500">{selectedAction.description}</p>
@@ -352,6 +369,7 @@ export function ContainerActionDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+      </Dialog>
 
       {cameraOpen && (
         <CameraScanner
@@ -359,7 +377,7 @@ export function ContainerActionDialog({
           onClose={() => setCameraOpen(false)}
         />
       )}
-    </Dialog>
+    </>
   );
 }
 
