@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Button } from '@/components/ui/button';
 
@@ -63,8 +64,15 @@ export function CameraScanner({ onScan, onClose }: CameraScannerProps) {
     };
   }, []);
 
-  return (
-    <div data-camera-scanner="" className="fixed inset-0 z-[60] bg-black/80 flex flex-col items-center justify-center">
+  return createPortal(
+    <div
+      data-camera-scanner=""
+      className="fixed inset-0 z-[60] bg-black/80 flex flex-col items-center justify-center"
+      onClick={(e) => {
+        // Click on the dark backdrop (not the white card) also closes.
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="bg-white rounded-lg p-4 max-w-sm w-full mx-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-medium">Camera Scanner</h3>
@@ -86,6 +94,7 @@ export function CameraScanner({ onScan, onClose }: CameraScannerProps) {
           Point your camera at a QR code
         </p>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
