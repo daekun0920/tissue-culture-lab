@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Button } from '@/components/ui/button';
@@ -16,55 +16,48 @@ export function CameraScanner({ onScan, onClose }: CameraScannerProps) {
   const onScanRef = useRef(onScan);
   const [error, setError] = useState<string | null>(null);
 
-  // Keep callback ref in sync without triggering useEffect re-runs
+  // Keep callback ref in sync without re-running setup
   onScanRef.current = onScan;
 
-  useEffect(() => {
-    let cancelled = false;
-    const scanner = new Html5Qrcode('camera-scanner-region');
-    scannerRef.current = scanner;
-
-    scanner
-      .start(
-        { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-        },
-        (decodedText) => {
-          if (cancelled) return;
-          // Extract QR code from URL if needed
-          let code = decodedText.trim();
-          try {
-            const url = new URL(code);
-            const segments = url.pathname.split('/').filter(Boolean);
-            code = segments[segments.length - 1] || code;
-          } catch {
-            // Not a URL, use as-is
-          }
-          onScanRef.current(code);
-        },
-        () => {
-          // QR code not found in frame — ignore
-        },
-      )
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setError(
-          err instanceof Error ? err.message : 'Failed to start camera',
-        );
-      });
-
-    return () => {
-      cancelled = true;
+  // Ref callback on the region div — fires once the element is actually in
+  // the DOM. This sidesteps a timing issue where Radix Dialog.Portal mounts
+  // its children via useLayoutEffect, so a sibling useEffect here would run
+  // before the div exists ("HTML Element with id=... not found").
+  const setupRegion = useCallback((el: HTMLDivElement | null) => {
+    if (el && !scannerRef.current) {
+      const scanner = new Html5Qrcode(el.id);
+      scannerRef.current = scanner;
+      scanner
+        .start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText) => {
+            let code = decodedText.trim();
+            try {
+              const url = new URL(code);
+              const segments = url.pathname.split('/').filter(Boolean);
+              code = segments[segments.length - 1] || code;
+            } catch {
+              // Not a URL, use as-is
+            }
+            onScanRef.current(code);
+          },
+          () => {
+            // QR not found in frame — ignore
+          },
+        )
+        .catch((err: unknown) => {
+          setError(err instanceof Error ? err.message : 'Failed to start camera');
+        });
+    } else if (!el && scannerRef.current) {
+      const scanner = scannerRef.current;
+      scannerRef.current = null;
       try {
-        if (scanner.isScanning) {
-          scanner.stop().catch(() => {});
-        }
+        if (scanner.isScanning) scanner.stop().catch(() => {});
       } catch {
-        // scanner.isScanning or stop() may throw if not initialized
+        // scanner.isScanning/stop may throw if not initialized
       }
-    };
+    }
   }, []);
 
   return (
@@ -86,6 +79,7 @@ export function CameraScanner({ onScan, onClose }: CameraScannerProps) {
 
           <div
             id="camera-scanner-region"
+            ref={setupRegion}
             className="w-full rounded overflow-hidden"
           />
 
