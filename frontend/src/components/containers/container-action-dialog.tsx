@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Camera, X } from 'lucide-react';
 import {
@@ -80,6 +80,11 @@ export function ContainerActionDialog({
   const { data: cultureTypes } = useCultureTypes();
 
   const [employeeId, setEmployeeId] = useState('');
+  const systemEmployeeId = employees?.find((e) => e.isActive && e.name === 'System')?.id ?? '';
+  useEffect(() => {
+    if (!employeeId && systemEmployeeId) setEmployeeId(systemEmployeeId);
+  }, [employeeId, systemEmployeeId]);
+
   const [mediaBatchId, setMediaBatchId] = useState('');
   const [cultureTypeId, setCultureTypeId] = useState('');
   const [reason, setReason] = useState('');
@@ -369,6 +374,23 @@ export function ContainerActionDialog({
         <CameraScanner
           onScan={addScannedTarget}
           onClose={() => setCameraOpen(false)}
+          scannedItems={needsTargetQrs && inputMode === 'scan' ? targetQrs : undefined}
+          onRemoveScanned={
+            needsTargetQrs && inputMode === 'scan'
+              ? (qr) => setTargetQrs((prev) => prev.filter((x) => x !== qr))
+              : undefined
+          }
+          onSubmit={
+            needsTargetQrs && inputMode === 'scan'
+              ? () => {
+                  setCameraOpen(false);
+                  handleSubmit();
+                }
+              : undefined
+          }
+          submitLabel={selectedAction.label}
+          canSubmit={canSubmit()}
+          isSubmitting={batchAction.isPending}
         />
       )}
     </>

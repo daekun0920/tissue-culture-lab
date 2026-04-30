@@ -1,17 +1,37 @@
 import { useCallback, useRef, useState } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Html5Qrcode } from 'html5-qrcode';
+import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface CameraScannerProps {
   onScan: (code: string) => void;
   onClose: () => void;
+  // When provided, the scanner shows a running list of scanned codes and a
+  // submit button in the footer. The header "Close" becomes "Done (N)".
+  scannedItems?: string[];
+  onRemoveScanned?: (code: string) => void;
+  onSubmit?: () => void;
+  submitLabel?: string;
+  canSubmit?: boolean;
+  isSubmitting?: boolean;
 }
 
 // Rendered as a Radix Dialog so it stacks correctly on top of an outer
 // Dialog (e.g. the Subculture action modal). Radix handles nested dismiss
 // layers — Esc and outside-click close only the scanner, not the parent.
-export function CameraScanner({ onScan, onClose }: CameraScannerProps) {
+export function CameraScanner({
+  onScan,
+  onClose,
+  scannedItems,
+  onRemoveScanned,
+  onSubmit,
+  submitLabel = 'Submit',
+  canSubmit = true,
+  isSubmitting = false,
+}: CameraScannerProps) {
+  const showItems = Array.isArray(scannedItems);
+  const count = scannedItems?.length ?? 0;
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const onScanRef = useRef(onScan);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +93,9 @@ export function CameraScanner({ onScan, onClose }: CameraScannerProps) {
               Camera Scanner
             </DialogPrimitive.Title>
             <DialogPrimitive.Close asChild>
-              <Button variant="ghost" size="sm">Close</Button>
+              <Button variant="ghost" size="sm">
+                {showItems ? `Done (${count})` : 'Close'}
+              </Button>
             </DialogPrimitive.Close>
           </div>
 
@@ -90,6 +112,47 @@ export function CameraScanner({ onScan, onClose }: CameraScannerProps) {
           <p className="text-xs text-gray-400 text-center mt-3">
             Point your camera at a QR code
           </p>
+
+          {showItems && (
+            <div className="mt-3">
+              <p className="text-xs text-gray-500 mb-1.5">
+                {count === 0 ? 'No QRs scanned yet' : `Scanned (${count}):`}
+              </p>
+              {count > 0 && (
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-2">
+                  {scannedItems!.map((qr) => (
+                    <span
+                      key={qr}
+                      className="inline-flex items-center gap-1 rounded border border-gray-200 bg-white px-2 py-1 font-mono text-xs"
+                    >
+                      {qr}
+                      {onRemoveScanned && (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveScanned(qr)}
+                          className="text-gray-400 hover:text-red-500"
+                          aria-label={`Remove ${qr}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {onSubmit && (
+            <Button
+              type="button"
+              onClick={onSubmit}
+              disabled={!canSubmit || isSubmitting || count === 0}
+              className="w-full mt-3"
+            >
+              {isSubmitting ? 'Processing...' : `${submitLabel} (${count})`}
+            </Button>
+          )}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

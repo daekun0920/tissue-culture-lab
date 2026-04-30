@@ -15,7 +15,10 @@ async function main() {
   await prisma.containerType.deleteMany();
   await prisma.employee.deleteMany();
 
-  // Employees
+  // Employees — "System" is the default attribution for unassigned actions.
+  await prisma.employee.create({
+    data: { name: 'System', isActive: true },
+  });
   const emp1 = await prisma.employee.create({
     data: { name: 'Alice Kim', isActive: true },
   });
